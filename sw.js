@@ -1,42 +1,36 @@
-const CACHE_NAME = "mother-inp-7.5.0";
+/*
+ MOTHER INP 7.5.0
+ Minimal safe service worker.
 
-const FILES_TO_CACHE = [
-  "./",
-  "./index.html",
-  "./style.css",
-  "./app.js",
-  "./manifest.json",
-  "./assets/inp7.5.jpg
-];
+ The application does not depend on this service worker.
+*/
 
-self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(FILES_TO_CACHE);
-    })
-  );
+self.addEventListener("install", function(event) {
 
   self.skipWaiting();
+
 });
 
-self.addEventListener("activate", event => {
+
+self.addEventListener("activate", function(event) {
+
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      )
-    )
+    self.clients.claim()
   );
 
-  self.clients.claim();
 });
 
-self.addEventListener("fetch", event => {
+
+self.addEventListener("fetch", function(event) {
+
+  if (
+    event.request.method !== "GET"
+  ) {
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      return cachedResponse || fetch(event.request);
-    })
+    fetch(event.request)
   );
+
 });
