@@ -1,133 +1,393 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8">
 
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-  <meta name="theme-color" content="#ffffff">
+  <meta
+    name="theme-color"
+    content="#ffffff"
+  >
 
-  <meta name="description"
-        content="MOTHER INP 7.5.0 — Evidence-Aware Computational Research Platform">
+  <meta
+    name="description"
+    content="MOTHER INP 7.5.0 — Evidence-Aware Computational Research Platform"
+  >
 
   <title>MOTHER INP 7.5.0</title>
 
-  <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css">
+  <link
+    rel="manifest"
+    href="./manifest.json"
+  >
 
-  <link rel="icon"
-        type="image/jpeg"
-        href="./assets/inp-logo.jpeg">
+  <link
+    rel="stylesheet"
+    href="./style.css"
+  >
 
-  <link rel="apple-touch-icon"
-        href="./assets/inp-logo.jpeg">
+  <link
+    rel="icon"
+    type="image/jpeg"
+    href="./assets/inp7.5.jpg"
+  >
+
+  <link
+    rel="apple-touch-icon"
+    href="./assets/inp7.5.jpg"
+  >
+
 </head>
 
+
 <body>
+
+  <!-- =====================================================
+       HEADER
+       ===================================================== -->
 
   <header class="app-header">
 
     <div class="brand">
 
       <img
-        src="./assets/inp-logo.jpeg"
+        src="./assets/inp7.5.jpg"
         alt="MOTHER INP Logo"
-        class="logo">
+        class="logo"
+      >
 
-      <div>
+      <div class="brand-text">
+
         <h1>MOTHER INP</h1>
-        <p>Intrinsic Network Pharmacology</p>
-        <span>Version 7.5.0</span>
+
+        <p>
+          Intrinsic Network Pharmacology
+        </p>
+
+        <span>
+          Version 7.5.0
+        </span>
+
       </div>
 
     </div>
 
+
     <div class="status">
+
       <span class="status-dot"></span>
-      System Ready
+
+      <span id="systemStatus">
+        System Ready
+      </span>
+
     </div>
 
   </header>
 
 
+
+  <!-- =====================================================
+       MAIN APPLICATION
+       ===================================================== -->
+
   <main class="container">
+
+
+    <!-- HERO -->
 
     <section class="hero">
 
-      <h2>MOTHER INP 7.5.0</h2>
+      <div class="hero-badge">
+        EVIDENCE-AWARE TRANSLATIONAL INTELLIGENCE
+      </div>
+
+      <h2>
+        MOTHER INP 7.5.0
+      </h2>
 
       <p>
-        Evidence-aware computational research platform integrating
-        disease biology, chemistry, exposure, ADME, network pharmacology,
-        uncertainty analysis, experimental prioritization and TIME™
-        translational integration.
+
+        Evidence-aware computational research platform
+        integrating disease biology, chemistry, exposure,
+        ADME, network pharmacology, uncertainty analysis,
+        experimental prioritization and TIME™ translational
+        integration.
+
       </p>
+
+      <div class="hero-meta">
+
+        <span>🧬 Systems Biology</span>
+        <span>🧪 Natural Products</span>
+        <span>🔬 Translational Research</span>
+        <span>⚖️ Evidence Aware</span>
+
+      </div>
 
     </section>
 
 
-    <!-- 11-LAYER ENGINE -->
+
+    <!-- =====================================================
+         11-LAYER ENGINE
+         ===================================================== -->
 
     <section class="panel">
 
-      <h2>🧬 INP 11-Layer Engine</h2>
+      <div class="section-heading">
+
+        <div>
+
+          <div class="section-kicker">
+            CORE ARCHITECTURE
+          </div>
+
+          <h2>
+            🧬 INP 11-Layer Engine
+          </h2>
+
+        </div>
+
+      </div>
+
 
       <div class="layer-grid">
 
-        <button onclick="openEngine(1)">
-          <strong>Layer 1</strong>
-          Disease + Genomic Context
+
+        <button
+          class="layer-card"
+          onclick="openEngine(1)"
+        >
+
+          <span class="layer-number">
+            01
+          </span>
+
+          <strong>
+            Disease + Genomic Context
+          </strong>
+
+          <small>
+            Disease signatures and biological context
+          </small>
+
         </button>
 
-        <button onclick="openEngine(2)">
-          <strong>Layer 2</strong>
-          MCheM / Physicochemistry
+
+
+        <button
+          class="layer-card"
+          onclick="openEngine(2)"
+        >
+
+          <span class="layer-number">
+            02
+          </span>
+
+          <strong>
+            MCheM / Physicochemistry
+          </strong>
+
+          <small>
+            Molecular and physicochemical characterization
+          </small>
+
         </button>
 
-        <button onclick="openEngine(3)">
-          <strong>Layer 3</strong>
-          Absorption / Exposure
+
+
+        <button
+          class="layer-card"
+          onclick="openEngine(3)"
+        >
+
+          <span class="layer-number">
+            03
+          </span>
+
+          <strong>
+            Absorption / Exposure
+          </strong>
+
+          <small>
+            Exposure and target-site availability
+          </small>
+
         </button>
 
-        <button onclick="openEngine(4)">
-          <strong>Layer 4</strong>
-          Metabolism / ADME
+
+
+        <button
+          class="layer-card"
+          onclick="openEngine(4)"
+        >
+
+          <span class="layer-number">
+            04
+          </span>
+
+          <strong>
+            Metabolism / ADME
+          </strong>
+
+          <small>
+            Parent and metabolite disposition
+          </small>
+
         </button>
 
-        <button onclick="openEngine(5)">
-          <strong>Layer 5</strong>
-          Cellular Action
+
+
+        <button
+          class="layer-card"
+          onclick="openEngine(5)"
+        >
+
+          <span class="layer-number">
+            05
+          </span>
+
+          <strong>
+            Cellular Action
+          </strong>
+
+          <small>
+            Cellular response and mechanism
+          </small>
+
         </button>
 
-        <button onclick="openEngine(6)">
-          <strong>Layer 6</strong>
-          Target / Pathway
+
+
+        <button
+          class="layer-card"
+          onclick="openEngine(6)"
+        >
+
+          <span class="layer-number">
+            06
+          </span>
+
+          <strong>
+            Target / Pathway
+          </strong>
+
+          <small>
+            Molecular targets and pathways
+          </small>
+
         </button>
 
-        <button onclick="openEngine(7)">
-          <strong>Layer 7</strong>
-          Tissue / Organ
+
+
+        <button
+          class="layer-card"
+          onclick="openEngine(7)"
+        >
+
+          <span class="layer-number">
+            07
+          </span>
+
+          <strong>
+            Tissue / Organ
+          </strong>
+
+          <small>
+            Tissue exposure and relevance
+          </small>
+
         </button>
 
-        <button onclick="openEngine(8)">
-          <strong>Layer 8</strong>
-          Network Pharmacology
+
+
+        <button
+          class="layer-card"
+          onclick="openEngine(8)"
+        >
+
+          <span class="layer-number">
+            08
+          </span>
+
+          <strong>
+            Network Pharmacology
+          </strong>
+
+          <small>
+            Network propagation and convergence
+          </small>
+
         </button>
 
-        <button onclick="openEngine(9)">
-          <strong>Layer 9</strong>
-          Time / Adaptation
+
+
+        <button
+          class="layer-card"
+          onclick="openEngine(9)"
+        >
+
+          <span class="layer-number">
+            09
+          </span>
+
+          <strong>
+            Time / Adaptation
+          </strong>
+
+          <small>
+            Temporal response and adaptation
+          </small>
+
         </button>
 
-        <button onclick="openEngine(10)">
-          <strong>Layer 10</strong>
-          Safety / Selectivity
+
+
+        <button
+          class="layer-card"
+          onclick="openEngine(10)"
+        >
+
+          <span class="layer-number">
+            10
+          </span>
+
+          <strong>
+            Safety / Selectivity
+          </strong>
+
+          <small>
+            Safety gates and selectivity
+          </small>
+
         </button>
 
-        <button onclick="openEngine(11)">
-          <strong>Layer 11</strong>
-          TIME™ Translation
+
+
+        <button
+          class="layer-card layer-card-time"
+          onclick="openEngine(11)"
+        >
+
+          <span class="layer-number">
+            11
+          </span>
+
+          <strong>
+            TIME™ Translation
+          </strong>
+
+          <small>
+            Translational integration and decision guidance
+          </small>
+
         </button>
 
       </div>
@@ -135,28 +395,120 @@
     </section>
 
 
-    <!-- RESEARCH MODULES -->
+
+    <!-- =====================================================
+         RESEARCH MODULES
+         ===================================================== -->
 
     <section class="panel">
 
-      <h2>Research Modules</h2>
+      <div class="section-kicker">
+        RESEARCH INTELLIGENCE
+      </div>
+
+      <h2>
+        Research Modules
+      </h2>
+
 
       <div class="module-grid">
 
-        <button onclick="openEvidence()">
-          📚 Evidence Ledger
+        <button
+          class="module-card"
+          onclick="openEvidence()"
+        >
+
+          <span class="module-icon">
+            📚
+          </span>
+
+          <span>
+
+            <strong>
+              Evidence Ledger
+            </strong>
+
+            <small>
+              Evidence provenance and classification
+            </small>
+
+          </span>
+
         </button>
 
-        <button onclick="openUncertainty()">
-          ⚠️ Uncertainty Analysis
+
+
+        <button
+          class="module-card"
+          onclick="openUncertainty()"
+        >
+
+          <span class="module-icon">
+            ⚠️
+          </span>
+
+          <span>
+
+            <strong>
+              Uncertainty Analysis
+            </strong>
+
+            <small>
+              Confidence and unresolved evidence
+            </small>
+
+          </span>
+
         </button>
 
-        <button onclick="openExperiments()">
-          🧪 Experimental Prioritization
+
+
+        <button
+          class="module-card"
+          onclick="openExperiments()"
+        >
+
+          <span class="module-icon">
+            🧪
+          </span>
+
+          <span>
+
+            <strong>
+              Experimental Prioritization
+            </strong>
+
+            <small>
+              Identify the most informative next experiments
+            </small>
+
+          </span>
+
         </button>
 
-        <button onclick="openTIME()">
-          🌿 TIME™ Translation
+
+
+        <button
+          class="module-card"
+          onclick="openTIME()"
+        >
+
+          <span class="module-icon">
+            🌿
+          </span>
+
+          <span>
+
+            <strong>
+              TIME™ Translation
+            </strong>
+
+            <small>
+              Translational evidence integration
+            </small>
+
+          </span>
+
         </button>
 
       </div>
@@ -164,25 +516,45 @@
     </section>
 
 
-    <!-- RUN MANAGEMENT -->
+
+    <!-- =====================================================
+         RUN MANAGEMENT
+         ===================================================== -->
 
     <section class="panel">
 
-      <h2>INP Run Management</h2>
+      <div class="section-kicker">
+        COMPUTATIONAL RUN CONTROL
+      </div>
+
+      <h2>
+        INP Run Management
+      </h2>
+
 
       <div class="run-actions">
 
-        <button class="primary" onclick="newRun()">
+        <button
+          class="primary"
+          onclick="newRun()"
+        >
           ➕ New INP Run
         </button>
 
-        <button onclick="document.getElementById('importFile').click()">
+
+        <button
+          onclick="document.getElementById('importFile').click()"
+        >
           📥 Import INP Run
         </button>
 
-        <button onclick="exportRun()">
+
+        <button
+          onclick="exportRun()"
+        >
           📤 Export INP Run
         </button>
+
 
         <input
           type="file"
@@ -197,112 +569,179 @@
     </section>
 
 
-    <!-- CURRENT RUN -->
+
+    <!-- =====================================================
+         CURRENT RUN
+         ===================================================== -->
 
     <section class="panel">
 
-      <h2>Current Run</h2>
+      <div class="section-kicker">
+        LIVE COMPUTATIONAL STATE
+      </div>
 
-      <div id="runDisplay" class="run-display">
+      <h2>
+        Current Run
+      </h2>
 
-        <p>
-          <strong>Run ID:</strong>
-          <span id="runId">Not started</span>
-        </p>
 
-        <p>
-          <strong>Version:</strong>
-          <span id="version">7.5.0</span>
-        </p>
+      <div
+        id="runDisplay"
+        class="run-display"
+      >
 
-        <p>
-          <strong>Status:</strong>
-          <span id="runStatus">Ready</span>
-        </p>
+        <div class="run-item">
+
+          <span>
+            Run ID
+          </span>
+
+          <strong id="runId">
+            Not started
+          </strong>
+
+        </div>
+
+
+        <div class="run-item">
+
+          <span>
+            Version
+          </span>
+
+          <strong id="version">
+            7.5.0
+          </strong>
+
+        </div>
+
+
+        <div class="run-item">
+
+          <span>
+            Status
+          </span>
+
+          <strong id="runStatus">
+            Ready
+          </strong>
+
+        </div>
 
       </div>
 
     </section>
 
 
-    <!-- SCIENTIFIC PRINCIPLE -->
+
+    <!-- =====================================================
+         SCIENTIFIC INTEGRITY
+         ===================================================== -->
 
     <section class="panel scientific-note">
 
-      <h2>Scientific Integrity</h2>
+      <div class="section-kicker">
+        SCIENTIFIC GOVERNANCE
+      </div>
+
+      <h2>
+        Scientific Integrity
+      </h2>
 
       <p>
-        MOTHER INP distinguishes computational prediction from
-        experimental validation and clinical evidence.
+
+        MOTHER INP distinguishes computational prediction
+        from experimental validation and clinical evidence.
+
       </p>
 
-      <ul>
 
-        <li>
-          E0 — Evidence absent
-        </li>
+      <div class="evidence-grid">
 
-        <li>
-          E1 — Computational evidence
-        </li>
+        <div>
+          <strong>E0</strong>
+          <span>Evidence absent</span>
+        </div>
 
-        <li>
-          E2 — Curated/database evidence
-        </li>
+        <div>
+          <strong>E1</strong>
+          <span>Computational evidence</span>
+        </div>
 
-        <li>
-          E3 — Experimental evidence
-        </li>
+        <div>
+          <strong>E2</strong>
+          <span>Curated/database evidence</span>
+        </div>
 
-        <li>
-          E4 — Clinical/human evidence
-        </li>
+        <div>
+          <strong>E3</strong>
+          <span>Experimental evidence</span>
+        </div>
 
-      </ul>
+        <div>
+          <strong>E4</strong>
+          <span>Clinical/human evidence</span>
+        </div>
 
-      <p>
-        Predictions are guidance for research prioritization and do not
-        constitute experimental or clinical proof.
+      </div>
+
+
+      <p class="integrity-warning">
+
+        Predictions are guidance for research prioritization
+        and do not constitute experimental or clinical proof.
+
       </p>
 
     </section>
 
+
   </main>
 
+
+
+  <!-- =====================================================
+       FOOTER
+       ===================================================== -->
 
   <footer>
 
     <img
-      src="./assets/inp-logo.jpeg"
-      alt="INP"
-      class="footer-logo">
+      src="./assets/inp7.5.jpg"
+      alt="MOTHER INP"
+      class="footer-logo"
+    >
 
-    <p>
-      MOTHER INP 7.5.0
-    </p>
 
-    <p>
-      Evidence-Aware Intrinsic Network Pharmacology
-    </p>
+    <div>
+
+      <strong>
+        MOTHER INP™ 7.5.0
+      </strong>
+
+      <p>
+        Evidence-Aware Intrinsic Network Pharmacology
+      </p>
+
+      <p>
+        Computational Research & Translational Intelligence
+      </p>
+
+    </div>
 
   </footer>
 
 
+
   <script src="./app.js"></script>
 
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./sw.js")
-          .then(() => {
-            console.log("MOTHER INP service worker registered.");
-          })
-          .catch(error => {
-            console.error("Service worker registration failed:", error);
-          });
-      });
-    }
-  </script>
+  <!--
+    Service worker intentionally disabled while validating
+    the live application. This prevents stale cached assets
+    from interfering with the production frontend.
+  -->
+
 
 </body>
+
 </html>
