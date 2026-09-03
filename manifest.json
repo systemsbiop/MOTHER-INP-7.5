@@ -1,0 +1,24 @@
+{
+  "name": "MOTHER INP 7.5.0",
+  "short_name": "INP",
+  "description": "MOTHER Intrinsic Network Pharmacology — Evidence-Aware Computational Research Platform",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "categories": [
+    "education",
+    "science",
+    "medical"
+  ],
+  "icons": [
+    {
+      "src": "assets/inp-logo.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
