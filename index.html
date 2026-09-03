@@ -1,1 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
 
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <meta name="theme-color" content="#ffffff">
+
+  <meta name="description"
+        content="MOTHER INP 7.5.0 — Evidence-Aware Computational Research Platform">
+
+  <title>MOTHER INP 7.5.0</title>
+
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./style.css">
+
+  <link rel="icon"
+        type="image/jpeg"
+        href="./assets/inp-logo.jpeg">
+
+  <link rel="apple-touch-icon"
+        href="./assets/inp-logo.jpeg">
+</head>
+
+<body>
+
+  <header class="app-header">
+
+    <div class="brand">
+
+      <img
+        src="./assets/inp-logo.jpeg"
+        alt="MOTHER INP Logo"
+        class="logo">
+
+      <div>
+        <h1>MOTHER INP</h1>
+        <p>Intrinsic Network Pharmacology</p>
+        <span>Version 7.5.0</span>
+      </div>
+
+    </div>
+
+    <div class="status">
+      <span class="status-dot"></span>
+      System Ready
+    </div>
+
+  </header>
+
+
+  <main class="container">
+
+    <section class="hero">
+
+      <h2>MOTHER INP 7.5.0</h2>
+
+      <p>
+        Evidence-aware computational research platform integrating
+        disease biology, chemistry, exposure, ADME, network pharmacology,
+        uncertainty analysis, experimental prioritization and TIME™
+        translational integration.
+      </p>
+
+    </section>
+
+
+    <!-- 11-LAYER ENGINE -->
+
+    <section class="panel">
+
+      <h2>🧬 INP 11-Layer Engine</h2>
+
+      <div class="layer-grid">
+
+        <button onclick="openEngine(1)">
+          <strong>Layer 1</strong>
+          Disease + Genomic Context
+        </button>
+
+        <button onclick="openEngine(2)">
+          <strong>Layer 2</strong>
+          MCheM / Physicochemistry
+        </button>
+
+        <button onclick="openEngine(3)">
+          <strong>Layer 3</strong>
+          Absorption / Exposure
+        </button>
+
+        <button onclick="openEngine(4)">
+          <strong>Layer 4</strong>
+          Metabolism / ADME
+        </button>
+
+        <button onclick="openEngine(5)">
+          <strong>Layer 5</strong>
+          Cellular Action
+        </button>
+
+        <button onclick="openEngine(6)">
+          <strong>Layer 6</strong>
+          Target / Pathway
+        </button>
+
+        <button onclick="openEngine(7)">
+          <strong>Layer 7</strong>
+          Tissue / Organ
+        </button>
+
+        <button onclick="openEngine(8)">
+          <strong>Layer 8</strong>
+          Network Pharmacology
+        </button>
+
+        <button onclick="openEngine(9)">
+          <strong>Layer 9</strong>
+          Time / Adaptation
+        </button>
+
+        <button onclick="openEngine(10)">
+          <strong>Layer 10</strong>
+          Safety / Selectivity
+        </button>
+
+        <button onclick="openEngine(11)">
+          <strong>Layer 11</strong>
+          TIME™ Translation
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- RESEARCH MODULES -->
+
+    <section class="panel">
+
+      <h2>Research Modules</h2>
+
+      <div class="module-grid">
+
+        <button onclick="openEvidence()">
+          📚 Evidence Ledger
+        </button>
+
+        <button onclick="openUncertainty()">
+          ⚠️ Uncertainty Analysis
+        </button>
+
+        <button onclick="openExperiments()">
+          🧪 Experimental Prioritization
+        </button>
+
+        <button onclick="openTIME()">
+          🌿 TIME™ Translation
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- RUN MANAGEMENT -->
+
+    <section class="panel">
+
+      <h2>INP Run Management</h2>
+
+      <div class="run-actions">
+
+        <button class="primary" onclick="newRun()">
+          ➕ New INP Run
+        </button>
+
+        <button onclick="document.getElementById('importFile').click()">
+          📥 Import INP Run
+        </button>
+
+        <button onclick="exportRun()">
+          📤 Export INP Run
+        </button>
+
+        <input
+          type="file"
+          id="importFile"
+          accept=".json,application/json"
+          style="display:none"
+          onchange="importRun(event)"
+        >
+
+      </div>
+
+    </section>
+
+
+    <!-- CURRENT RUN -->
+
+    <section class="panel">
+
+      <h2>Current Run</h2>
+
+      <div id="runDisplay" class="run-display">
+
+        <p>
+          <strong>Run ID:</strong>
+          <span id="runId">Not started</span>
+        </p>
+
+        <p>
+          <strong>Version:</strong>
+          <span id="version">7.5.0</span>
+        </p>
+
+        <p>
+          <strong>Status:</strong>
+          <span id="runStatus">Ready</span>
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- SCIENTIFIC PRINCIPLE -->
+
+    <section class="panel scientific-note">
+
+      <h2>Scientific Integrity</h2>
+
+      <p>
+        MOTHER INP distinguishes computational prediction from
+        experimental validation and clinical evidence.
+      </p>
+
+      <ul>
+
+        <li>
+          E0 — Evidence absent
+        </li>
+
+        <li>
+          E1 — Computational evidence
+        </li>
+
+        <li>
+          E2 — Curated/database evidence
+        </li>
+
+        <li>
+          E3 — Experimental evidence
+        </li>
+
+        <li>
+          E4 — Clinical/human evidence
+        </li>
+
+      </ul>
+
+      <p>
+        Predictions are guidance for research prioritization and do not
+        constitute experimental or clinical proof.
+      </p>
+
+    </section>
+
+  </main>
+
+
+  <footer>
+
+    <img
+      src="./assets/inp-logo.jpeg"
+      alt="INP"
+      class="footer-logo">
+
+    <p>
+      MOTHER INP 7.5.0
+    </p>
+
+    <p>
+      Evidence-Aware Intrinsic Network Pharmacology
+    </p>
+
+  </footer>
+
+
+  <script src="./app.js"></script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js")
+          .then(() => {
+            console.log("MOTHER INP service worker registered.");
+          })
+          .catch(error => {
+            console.error("Service worker registration failed:", error);
+          });
+      });
+    }
+  </script>
+
+</body>
+</html>
