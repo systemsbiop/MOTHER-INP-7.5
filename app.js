@@ -1,48 +1,33 @@
-/*
- MOTHER INP 7.5.0 — Connected Frontend
- Evidence-aware translational intelligence interface.
-
- Production API:
- https://mother-inp-7-5-backend.onrender.com
-
- This frontend communicates with the real FastAPI MOTHER INP 7.5 backend.
-*/
-
-
-/* =========================================================
-   API CONFIGURATION
-   ========================================================= */
+/* ============================================================
+   MOTHER INP 7.5.0
+   Connected Scientific Run Interface
+   Existing application — frontend result-display fix
+   ============================================================ */
 
 const DEFAULT_API =
   "https://mother-inp-7-5-backend.onrender.com";
 
-let API_BASE =
-  (window.INP_API_BASE ||
-    localStorage.getItem("inp_api_base") ||
-    DEFAULT_API)
-    .replace(/\/$/, "");
-
-
-/* =========================================================
-   CURRENT RUN STATE
-   ========================================================= */
+let API_BASE = (
+  window.INP_API_BASE ||
+  localStorage.getItem("inp_api_base") ||
+  DEFAULT_API
+).replace(/\/$/, "");
 
 let currentRun = {
   version: "7.5.0",
   run_id: "",
   candidate_id: "C001",
-  name: "MOTHER INP 7.5 Functional Test",
+  name: "",
   layers: [],
   status: "Ready"
 };
 
 
-/* =========================================================
-   STATUS DISPLAY
-   ========================================================= */
+/* ============================================================
+   BASIC UI
+   ============================================================ */
 
 function setStatus(text, ok = true) {
-
   const el = document.getElementById("runStatus");
 
   if (el) {
@@ -58,9 +43,9 @@ function setStatus(text, ok = true) {
 }
 
 
-/* =========================================================
-   BASIC RUN STATUS RENDERER
-   ========================================================= */
+/* ============================================================
+   CURRENT RUN DISPLAY
+   ============================================================ */
 
 function renderRun(run) {
 
@@ -86,15 +71,20 @@ function renderRun(run) {
   }
 
   if (status) {
+    const translation =
+      currentRun.translation
+        ? ` — ${currentRun.translation}`
+        : "";
+
     status.textContent =
-      currentRun.status || "Ready";
+      `${currentRun.status || "Ready"}${translation}`;
   }
 }
 
 
-/* =========================================================
-   API REQUEST WRAPPER
-   ========================================================= */
+/* ============================================================
+   API
+   ============================================================ */
 
 async function api(path, options = {}) {
 
@@ -102,23 +92,26 @@ async function api(path, options = {}) {
     new AbortController();
 
   const timeout =
-    setTimeout(() => controller.abort(), 30000);
+    setTimeout(
+      () => controller.abort(),
+      30000
+    );
 
   try {
 
-    const response = await fetch(
-      `${API_BASE}${path}`,
-      {
-        ...options,
-
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {})
-        },
-
-        signal: controller.signal
-      }
-    );
+    const response =
+      await fetch(
+        `${API_BASE}${path}`,
+        {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            "Content-Type":
+              "application/json",
+            ...(options.headers || {})
+          }
+        }
+      );
 
     const text =
       await response.text();
@@ -126,14 +119,13 @@ async function api(path, options = {}) {
     let data;
 
     try {
-
       data =
         text
           ? JSON.parse(text)
           : {};
+    }
 
-    } catch {
-
+    catch {
       data = {
         raw: text
       };
@@ -144,8 +136,7 @@ async function api(path, options = {}) {
       const message =
         data?.detail ||
         data?.message ||
-        response.statusText ||
-        "Request failed";
+        response.statusText;
 
       throw new Error(
         `${response.status}: ${message}`
@@ -154,27 +145,29 @@ async function api(path, options = {}) {
 
     return data;
 
-  } catch (error) {
+  }
+
+  catch (error) {
 
     if (error.name === "AbortError") {
-
       throw new Error(
-        "API request timed out after 30 seconds."
+        "Backend request timed out after 30 seconds."
       );
     }
 
     throw error;
 
-  } finally {
+  }
 
+  finally {
     clearTimeout(timeout);
   }
 }
 
 
-/* =========================================================
-   BACKEND HEALTH CHECK
-   ========================================================= */
+/* ============================================================
+   BACKEND HEALTH
+   ============================================================ */
 
 async function checkBackend() {
 
@@ -196,16 +189,13 @@ async function checkBackend() {
 
     return data;
 
-  } catch (error) {
+  }
+
+  catch (error) {
 
     setStatus(
       `Backend unavailable — ${error.message}`,
       false
-    );
-
-    console.error(
-      "MOTHER INP backend health check failed:",
-      error
     );
 
     return null;
@@ -213,9 +203,9 @@ async function checkBackend() {
 }
 
 
-/* =========================================================
-   CREATE NEW RUN
-   ========================================================= */
+/* ============================================================
+   NEW RUN
+   ============================================================ */
 
 async function newRun() {
 
@@ -259,7 +249,9 @@ async function newRun() {
 
     return data;
 
-  } catch (error) {
+  }
+
+  catch (error) {
 
     setStatus(
       `Run creation failed — ${error.message}`,
@@ -269,82 +261,63 @@ async function newRun() {
     alert(
       `MOTHER INP backend error:\n\n${error.message}`
     );
-
-    console.error(
-      "MOTHER INP new run error:",
-      error
-    );
   }
 }
 
 
-/* =========================================================
-   FUNCTIONAL INP 7.5 TEST
-   ========================================================= */
+/* ============================================================
+   FUNCTIONAL RUN
+   ============================================================ */
 
 async function executeFunctionalTest() {
 
-  const candidateId =
-    document.getElementById(
-      "candidateInput"
-    )?.value.trim() || "C001";
+  const button =
+    document.getElementById("executeBtn");
 
-  const candidateName =
-    document.getElementById(
-      "candidateNameInput"
-    )?.value.trim() ||
-    "MOTHER INP 7.5 Functional Test";
-
+  if (button) {
+    button.disabled = true;
+    button.textContent =
+      "⏳ Running MOTHER INP…";
+  }
 
   const payload = {
 
     candidate_id:
-      candidateId,
+      currentRun.candidate_id || "C001",
 
     name:
-      candidateName,
+      currentRun.name ||
+      "MOTHER INP 7.5 Functional Test",
 
     layers: [
 
       {
         layer: "L1",
-
         status: "PARTIAL",
-
         score: 0.60,
-
         failure_nodes: [
           "TEST_DATA_INCOMPLETE"
         ],
-
         notes:
           "Controlled software validation run."
       },
 
       {
         layer: "L2",
-
         status: "PARTIAL",
-
         score: 0.70,
-
         failure_nodes: [],
-
         notes:
           "Chemical characterization data not supplied."
       },
 
       {
         layer: "L10",
-
         status: "UNRESOLVED",
-
         score: null,
-
         failure_nodes: [
           "SAFETY_DATA_MISSING"
         ],
-
         notes:
           "Safety evidence intentionally absent."
       }
@@ -359,168 +332,86 @@ async function executeFunctionalTest() {
   };
 
 
-  const button =
-    document.getElementById(
-      "executeBtn"
-    );
-
-
   try {
 
-    if (button) {
-
-      button.disabled =
-        true;
-
-      button.textContent =
-        "⏳ Executing INP 7.5…";
-    }
-
-
     setStatus(
-      "Executing MOTHER INP 7.5 engine…"
+      "Executing INP 7.5 engine…"
     );
-
 
     console.log(
-      "MOTHER INP 7.5: Sending functional run",
+      "MOTHER INP payload:",
       payload
     );
-
 
     const data =
       await api(
         "/v1/run",
         {
           method: "POST",
-
           body:
             JSON.stringify(payload)
         }
       );
 
-
-    console.log(
-      "MOTHER INP 7.5: Backend response",
-      data
-    );
-
-
     if (!data || !data.run) {
-
       throw new Error(
-        "Backend returned no run object."
+        "Backend returned no run result."
       );
     }
-
 
     currentRun =
       data.run;
 
-
     currentRun.status =
       "Completed";
 
+    renderRun(
+      currentRun
+    );
+
+    setStatus(
+      `Engine completed — ${
+        currentRun.translation || "GREY"
+      }`
+    );
 
     /*
-      IMPORTANT:
-
-      Display the actual backend result
-      immediately.
-
-      The result renderer is independent
-      of the small status renderer.
+       IMPORTANT:
+       Render the complete result into the
+       existing application immediately.
     */
 
     showResult(
       currentRun
     );
 
-
-    /*
-      Update the small run-status
-      fields separately.
-
-      If this fails, it must NOT
-      hide the successful result.
-    */
-
-    try {
-
-      renderRun(
-        currentRun
-      );
-
-    } catch (renderError) {
-
-      console.warn(
-        "MOTHER INP status renderer warning:",
-        renderError
-      );
-    }
-
-
-    setStatus(
-      `Engine completed — ${
-        currentRun.translation || "GREY"
-      }`,
-      true
-    );
-
-
-    console.log(
-      "MOTHER INP 7.5: Run completed",
-      currentRun
-    );
-
-
     return currentRun;
 
+  }
 
-  } catch (error) {
+  catch (error) {
 
     console.error(
-      "MOTHER INP 7.5: Execution failed",
+      "MOTHER INP execution error:",
       error
     );
-
 
     setStatus(
       `Engine execution failed — ${error.message}`,
       false
     );
 
+    alert(
+      `MOTHER INP engine error:\n\n${error.message}`
+    );
 
-    const box =
-      document.getElementById(
-        "inpResultBox"
-      );
+  }
 
-
-    if (box) {
-
-      box.textContent =
-        "MOTHER INP 7.5 ENGINE ERROR\n\n" +
-        error.message;
-
-    } else {
-
-      alert(
-        "MOTHER INP 7.5 ENGINE ERROR\n\n" +
-        error.message
-      );
-    }
-
-
-    return null;
-
-
-  } finally {
+  finally {
 
     if (button) {
 
-      button.disabled =
-        false;
+      button.disabled = false;
 
       button.textContent =
         "▶ Execute Functional Run";
@@ -529,151 +420,742 @@ async function executeFunctionalTest() {
 }
 
 
-/* =========================================================
-   RESULT DISPLAY
-   ========================================================= */
+/* ============================================================
+   RESULT PANEL
+   ============================================================ */
+
+function ensureResultPanel() {
+
+  let panel =
+    document.getElementById(
+      "inpResultPanel"
+    );
+
+  if (panel) {
+    return panel;
+  }
+
+
+  panel =
+    document.createElement(
+      "section"
+    );
+
+  panel.id =
+    "inpResultPanel";
+
+  panel.className =
+    "panel";
+
+
+  panel.style.cssText = `
+    display:block !important;
+    width:100%;
+    box-sizing:border-box;
+    margin-top:20px;
+    margin-bottom:20px;
+    padding:22px;
+    background:#ffffff;
+    border:1px solid #d9e2ec;
+    border-radius:16px;
+    box-shadow:0 6px 20px rgba(15,23,42,0.08);
+    visibility:visible !important;
+    opacity:1 !important;
+  `;
+
+
+  /*
+     Put results immediately after
+     Current Run rather than at the
+     invisible/unclear bottom of the page.
+  */
+
+  const currentRunPanel =
+    document
+      .getElementById("runDisplay")
+      ?.closest(".panel");
+
+
+  if (
+    currentRunPanel &&
+    currentRunPanel.parentNode
+  ) {
+
+    currentRunPanel.parentNode.insertBefore(
+      panel,
+      currentRunPanel.nextSibling
+    );
+
+  }
+
+  else {
+
+    const main =
+      document.querySelector("main");
+
+    if (main) {
+      main.appendChild(panel);
+    }
+
+    else {
+      document.body.appendChild(panel);
+    }
+  }
+
+
+  return panel;
+}
+
+
+/* ============================================================
+   RESULT RENDERING
+   ============================================================ */
 
 function showResult(run) {
 
   if (!run) {
-
-    console.warn(
-      "showResult called without a run."
-    );
-
     return;
   }
 
 
-  let box =
+  const panel =
+    ensureResultPanel();
+
+
+  const failureNodes =
+    Array.isArray(run.failure_nodes)
+      ? run.failure_nodes
+      : [];
+
+
+  const experiments =
+    Array.isArray(run.experiments)
+      ? run.experiments
+      : [];
+
+
+  const layers =
+    Array.isArray(run.layers)
+      ? run.layers
+      : [];
+
+
+  const translation =
+    run.translation ||
+    "GREY";
+
+
+  const priority =
+    run.overall_priority !== undefined
+      ? run.overall_priority
+      : "—";
+
+
+  const uncertainty =
+    run.overall_uncertainty !== undefined
+      ? run.overall_uncertainty
+      : "—";
+
+
+  const audit =
+    run.audit_sha256 ||
+    "Not available";
+
+
+  panel.innerHTML = `
+
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:18px;
+    ">
+
+      <div>
+
+        <div style="
+          font-size:11px;
+          font-weight:700;
+          letter-spacing:1px;
+          text-transform:uppercase;
+          opacity:.65;
+          margin-bottom:5px;
+        ">
+          MOTHER INP 7.5.0
+        </div>
+
+        <h2 style="
+          margin:0;
+          font-size:22px;
+        ">
+          🧬 INP Run Results
+        </h2>
+
+      </div>
+
+
+      <div style="
+        padding:8px 13px;
+        border-radius:999px;
+        background:#eef6f0;
+        border:1px solid #cfe3d4;
+        font-weight:700;
+        font-size:13px;
+      ">
+        ${escapeHtml(
+          String(run.status || "Completed")
+        )}
+      </div>
+
+    </div>
+
+
+    <!-- SUMMARY -->
+
+    <div style="
+      display:grid;
+      grid-template-columns:
+        repeat(auto-fit,minmax(150px,1fr));
+      gap:12px;
+      margin-bottom:20px;
+    ">
+
+      ${resultCard(
+        "Disease / Candidate",
+        run.name || run.candidate_id || "—"
+      )}
+
+      ${resultCard(
+        "Run ID",
+        run.run_id || "—"
+      )}
+
+      ${resultCard(
+        "Priority",
+        String(priority)
+      )}
+
+      ${resultCard(
+        "Uncertainty",
+        String(uncertainty)
+      )}
+
+      ${resultCard(
+        "Translation",
+        translation
+      )}
+
+    </div>
+
+
+    <!-- FAILURE NODES -->
+
+    <div style="
+      border-top:1px solid #e2e8f0;
+      padding-top:18px;
+      margin-top:4px;
+    ">
+
+      <h3 style="
+        margin:0 0 10px 0;
+        font-size:16px;
+      ">
+        ⚠ Failure Nodes
+      </h3>
+
+      ${
+        failureNodes.length
+          ? failureNodes.map(
+              node => `
+                <div style="
+                  padding:10px 12px;
+                  margin:7px 0;
+                  border-radius:9px;
+                  background:#fff7ed;
+                  border:1px solid #fed7aa;
+                  font-size:13px;
+                  font-weight:650;
+                ">
+                  ⚠ ${escapeHtml(String(node))}
+                </div>
+              `
+            ).join("")
+          : `
+            <div style="
+              padding:10px 12px;
+              border-radius:9px;
+              background:#f0fdf4;
+              border:1px solid #bbf7d0;
+              font-size:13px;
+            ">
+              No failure nodes recorded.
+            </div>
+          `
+      }
+
+    </div>
+
+
+    <!-- LAYER RESULTS -->
+
+    <div style="
+      border-top:1px solid #e2e8f0;
+      padding-top:18px;
+      margin-top:20px;
+    ">
+
+      <h3 style="
+        margin:0 0 10px 0;
+        font-size:16px;
+      ">
+        🔬 Layer Results
+      </h3>
+
+      ${
+        layers.length
+          ? layers.map(
+              layer => `
+                <div style="
+                  display:grid;
+                  grid-template-columns:
+                    70px 120px 90px 1fr;
+                  gap:10px;
+                  align-items:center;
+                  padding:10px;
+                  margin:6px 0;
+                  border:1px solid #e2e8f0;
+                  border-radius:9px;
+                  background:#f8fafc;
+                  font-size:12px;
+                ">
+
+                  <strong>
+                    ${escapeHtml(
+                      String(layer.layer || "—")
+                    )}
+                  </strong>
+
+                  <span>
+                    ${escapeHtml(
+                      String(layer.status || "—")
+                    )}
+                  </span>
+
+                  <span>
+                    Score:
+                    ${
+                      layer.score === null ||
+                      layer.score === undefined
+                        ? "—"
+                        : escapeHtml(
+                            String(layer.score)
+                          )
+                    }
+                  </span>
+
+                  <span>
+                    ${
+                      Array.isArray(
+                        layer.failure_nodes
+                      ) &&
+                      layer.failure_nodes.length
+                        ? escapeHtml(
+                            layer.failure_nodes.join(", ")
+                          )
+                        : escapeHtml(
+                            layer.notes || ""
+                          )
+                    }
+                  </span>
+
+                </div>
+              `
+            ).join("")
+          : `
+            <div style="
+              padding:12px;
+              border-radius:9px;
+              background:#f8fafc;
+              font-size:13px;
+            ">
+              No layer records returned.
+            </div>
+          `
+      }
+
+    </div>
+
+
+    <!-- EXPERIMENTS -->
+
+    <div style="
+      border-top:1px solid #e2e8f0;
+      padding-top:18px;
+      margin-top:20px;
+    ">
+
+      <h3 style="
+        margin:0 0 10px 0;
+        font-size:16px;
+      ">
+        🧪 Experimental Priorities
+      </h3>
+
+      ${
+        experiments.length
+          ? experiments.map(
+              (experiment, index) => `
+                <div style="
+                  padding:13px;
+                  margin:8px 0;
+                  border:1px solid #e2e8f0;
+                  border-radius:10px;
+                  background:#ffffff;
+                ">
+
+                  <div style="
+                    font-weight:700;
+                    margin-bottom:5px;
+                  ">
+                    ${index + 1}.
+                    ${escapeHtml(
+                      String(
+                        experiment.layer ||
+                        "Layer"
+                      )
+                    )}
+                    —
+                    ${escapeHtml(
+                      String(
+                        experiment.experiment_class ||
+                        "Experiment"
+                      )
+                    )}
+                  </div>
+
+                  <div style="
+                    font-size:13px;
+                    line-height:1.5;
+                  ">
+                    ${
+                      escapeHtml(
+                        String(
+                          experiment.rationale ||
+                          ""
+                        )
+                      )
+                    }
+                  </div>
+
+                  ${
+                    Array.isArray(
+                      experiment.missing_evidence
+                    )
+                    ? `
+                      <div style="
+                        margin-top:7px;
+                        font-size:12px;
+                        opacity:.75;
+                      ">
+                        Missing evidence:
+                        ${escapeHtml(
+                          experiment.missing_evidence.join(
+                            "; "
+                          )
+                        )}
+                      </div>
+                    `
+                    : ""
+                  }
+
+                </div>
+              `
+            ).join("")
+          : `
+            <div style="
+              padding:12px;
+              border-radius:9px;
+              background:#f8fafc;
+              font-size:13px;
+            ">
+              No experiment recommendations returned.
+            </div>
+          `
+      }
+
+    </div>
+
+
+    <!-- AUDIT -->
+
+    <div style="
+      border-top:1px solid #e2e8f0;
+      padding-top:18px;
+      margin-top:20px;
+    ">
+
+      <h3 style="
+        margin:0 0 10px 0;
+        font-size:16px;
+      ">
+        🔐 Audit SHA-256
+      </h3>
+
+      <div style="
+        padding:12px;
+        border-radius:9px;
+        background:#f8fafc;
+        border:1px solid #e2e8f0;
+        font-family:
+          ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+        font-size:11px;
+        word-break:break-all;
+      ">
+        ${escapeHtml(audit)}
+      </div>
+
+    </div>
+
+
+    <!-- GOVERNANCE -->
+
+    <div style="
+      margin-top:20px;
+      padding:14px;
+      border-radius:10px;
+      background:#f8fafc;
+      border:1px solid #e2e8f0;
+      font-size:12px;
+      line-height:1.6;
+    ">
+
+      <strong>
+        Scientific Governance
+      </strong>
+
+      <br>
+
+      E0 = Evidence absent ·
+      E1 = Computational ·
+      E2 = Curated/database ·
+      E3 = Experimental ·
+      E4 = Clinical/human
+
+      <br><br>
+
+      This output is a computational/evidence-governance
+      record for research prioritization. It does not
+      constitute experimental validation or clinical proof.
+
+    </div>
+
+
+    <!-- EXPORT -->
+
+    <div style="
+      margin-top:18px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    ">
+
+      <button
+        id="resultExportBtn"
+        style="
+          width:auto;
+          padding:10px 16px;
+          border-radius:9px;
+          cursor:pointer;
+          font-weight:700;
+        "
+      >
+        📤 Save / Export This Run
+      </button>
+
+      <button
+        id="resultRawBtn"
+        style="
+          width:auto;
+          padding:10px 16px;
+          border-radius:9px;
+          cursor:pointer;
+        "
+      >
+        🧾 View Raw JSON
+      </button>
+
+    </div>
+
+  `;
+
+
+  const exportButton =
     document.getElementById(
-      "inpResultBox"
+      "resultExportBtn"
     );
 
+  if (exportButton) {
 
-  if (!box) {
-
-    box =
-      document.createElement(
-        "pre"
-      );
-
-    box.id =
-      "inpResultBox";
-
-
-    box.style.whiteSpace =
-      "pre-wrap";
-
-    box.style.padding =
-      "16px";
-
-    box.style.marginTop =
-      "20px";
-
-    box.style.borderRadius =
-      "12px";
-
-    box.style.overflowX =
-      "auto";
-
-    box.style.background =
-      "#ffffff";
-
-    box.style.border =
-      "1px solid #ddd";
-
-    box.style.fontFamily =
-      "monospace";
-
-    box.style.fontSize =
-      "14px";
-
-    box.style.lineHeight =
-      "1.5";
-
-
-    const host =
-      document.querySelector("main") ||
-      document.body;
-
-
-    host.appendChild(
-      box
+    exportButton.addEventListener(
+      "click",
+      exportRun
     );
   }
 
 
-  const result = {
+  const rawButton =
+    document.getElementById(
+      "resultRawBtn"
+    );
 
-    run_id:
-      run.run_id,
+  if (rawButton) {
 
-    version:
-      run.version,
+    rawButton.addEventListener(
+      "click",
+      () => {
+        showRawResult(run);
+      }
+    );
+  }
 
-    candidate_id:
-      run.candidate_id,
 
-    name:
-      run.name,
+  /*
+     Force browser to reveal the result.
+  */
 
-    status:
-      run.status,
+  panel.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
 
-    overall_priority:
-      run.overall_priority,
 
-    overall_uncertainty:
-      run.overall_uncertainty,
+/* ============================================================
+   RESULT CARD
+   ============================================================ */
 
-    translation:
-      run.translation,
+function resultCard(label, value) {
 
-    failure_nodes:
-      run.failure_nodes,
+  return `
+    <div style="
+      padding:13px;
+      border-radius:10px;
+      border:1px solid #e2e8f0;
+      background:#f8fafc;
+      min-width:0;
+    ">
 
-    experiments:
-      run.experiments,
+      <div style="
+        font-size:10px;
+        font-weight:700;
+        text-transform:uppercase;
+        letter-spacing:.6px;
+        opacity:.6;
+        margin-bottom:5px;
+      ">
+        ${escapeHtml(label)}
+      </div>
 
-    audit_sha256:
-      run.audit_sha256
-  };
+      <div style="
+        font-size:14px;
+        font-weight:700;
+        word-break:break-word;
+      ">
+        ${escapeHtml(value)}
+      </div>
 
+    </div>
+  `;
+}
+
+
+/* ============================================================
+   RAW JSON
+   ============================================================ */
+
+function showRawResult(run) {
+
+  const existing =
+    document.getElementById(
+      "inpRawResult"
+    );
+
+  if (existing) {
+    existing.remove();
+  }
+
+
+  const box =
+    document.createElement(
+      "pre"
+    );
+
+  box.id =
+    "inpRawResult";
+
+  box.style.cssText = `
+    margin-top:15px;
+    padding:15px;
+    background:#0f172a;
+    color:#e2e8f0;
+    border-radius:10px;
+    overflow:auto;
+    white-space:pre-wrap;
+    word-break:break-word;
+    font-size:11px;
+  `;
 
   box.textContent =
     JSON.stringify(
-      result,
+      run,
       null,
       2
     );
 
 
-  /*
-    Make the result visible
-    even if it is below the
-    current viewport.
-  */
+  const panel =
+    document.getElementById(
+      "inpResultPanel"
+    );
 
-  box.scrollIntoView({
-    behavior: "smooth",
-    block: "nearest"
-  });
+  if (panel) {
+    panel.appendChild(box);
+  }
 }
 
 
-/* =========================================================
-   ENGINE / INFORMATION PANELS
-   ========================================================= */
+/* ============================================================
+   ESCAPE HTML
+   ============================================================ */
+
+function escapeHtml(value) {
+
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+
+/* ============================================================
+   ENGINE / RESEARCH MODULES
+   ============================================================ */
 
 function openEngine(layer) {
 
   alert(
     `INP Layer ${layer}\n\n` +
-    `The connected frontend is ready to send ` +
-    `structured layer data to the real ` +
-    `MOTHER INP 7.5 backend.\n\n` +
-    `Current API: ${API_BASE}`
+    `The connected MOTHER INP 7.5 engine is ready ` +
+    `to receive structured layer data.\n\n` +
+    `Current API:\n${API_BASE}`
   );
 }
 
@@ -682,8 +1164,8 @@ function openEvidence() {
 
   alert(
     "Evidence Ledger\n\n" +
-    "Use POST /v1/evidence/validate " +
-    "in the backend API for evidence-item validation."
+    "Evidence validation is available through " +
+    "the MOTHER INP 7.5 backend."
   );
 }
 
@@ -692,8 +1174,8 @@ function openUncertainty() {
 
   alert(
     "Uncertainty Analysis\n\n" +
-    "Use POST /v1/uncertainty " +
-    "to calculate bounded layer uncertainty."
+    "Bounded uncertainty analysis is available " +
+    "through the MOTHER INP 7.5 backend."
   );
 }
 
@@ -702,8 +1184,8 @@ function openExperiments() {
 
   alert(
     "Experimental Prioritization\n\n" +
-    "The engine generates experiment recommendations " +
-    "from missing or uncertain evidence during /v1/run."
+    "MOTHER INP generates experimental " +
+    "recommendations from missing or uncertain evidence."
   );
 }
 
@@ -719,9 +1201,9 @@ function openTIME() {
 }
 
 
-/* =========================================================
-   IMPORT RUN
-   ========================================================= */
+/* ============================================================
+   IMPORT
+   ============================================================ */
 
 function importRun(event) {
 
@@ -741,10 +1223,20 @@ function importRun(event) {
 
     try {
 
-      const run =
+      const parsed =
         JSON.parse(
           reader.result
         );
+
+      /*
+         Support both:
+         1. direct run JSON
+         2. { ok:true, run:{...} }
+      */
+
+      const run =
+        parsed?.run ||
+        parsed;
 
 
       currentRun =
@@ -762,12 +1254,12 @@ function importRun(event) {
 
 
       setStatus(
-        "Run imported",
-        true
+        "Run imported"
       );
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
       alert(
         `Invalid INP JSON:\n\n${error.message}`
@@ -776,23 +1268,22 @@ function importRun(event) {
   };
 
 
-  reader.readAsText(
-    file
-  );
+  reader.readAsText(file);
 
-
-  event.target.value =
-    "";
+  event.target.value = "";
 }
 
 
-/* =========================================================
-   EXPORT RUN
-   ========================================================= */
+/* ============================================================
+   EXPORT
+   ============================================================ */
 
 function exportRun() {
 
-  if (!currentRun.run_id) {
+  if (
+    !currentRun ||
+    !currentRun.run_id
+  ) {
 
     alert(
       "No INP run is available to export yet."
@@ -829,35 +1320,28 @@ function exportRun() {
       "a"
     );
 
-
   a.href =
     url;
-
 
   a.download =
     `${currentRun.run_id}.json`;
 
-
-  document.body.appendChild(
-    a
-  );
-
+  document.body.appendChild(a);
 
   a.click();
 
-
   a.remove();
 
-
-  URL.revokeObjectURL(
-    url
+  setTimeout(
+    () => URL.revokeObjectURL(url),
+    1000
   );
 }
 
 
-/* =========================================================
+/* ============================================================
    LIVE ENGINE CONTROLS
-   ========================================================= */
+   ============================================================ */
 
 function addEngineControls() {
 
@@ -866,7 +1350,6 @@ function addEngineControls() {
       "engineControls"
     )
   ) {
-
     return;
   }
 
@@ -876,10 +1359,8 @@ function addEngineControls() {
       "section"
     );
 
-
   section.id =
     "engineControls";
-
 
   section.className =
     "panel";
@@ -887,19 +1368,19 @@ function addEngineControls() {
 
   section.innerHTML = `
 
-    <h2>⚙️ Live INP 7.5 Engine</h2>
+    <h2>
+      ⚙️ Live INP 7.5 Engine
+    </h2>
 
     <p>
-      Connected to the real FastAPI INP 7.5 engine.
+      Connected to the real MOTHER INP 7.5 backend.
     </p>
 
-    <div
-      style="
-        display:grid;
-        gap:10px;
-        max-width:700px;
-      "
-    >
+    <div style="
+      display:grid;
+      gap:10px;
+      max-width:700px;
+    ">
 
       <label>
         Candidate ID
@@ -936,7 +1417,7 @@ function addEngineControls() {
 
         <input
           id="apiInput"
-          value="${API_BASE}"
+          value="${escapeHtml(API_BASE)}"
           style="
             width:100%;
             padding:10px;
@@ -946,13 +1427,11 @@ function addEngineControls() {
       </label>
 
 
-      <div
-        style="
-          display:flex;
-          gap:10px;
-          flex-wrap:wrap;
-        "
-      >
+      <div style="
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+      ">
 
         <button
           id="connectBtn"
@@ -964,7 +1443,6 @@ function addEngineControls() {
         <button
           id="executeBtn"
           class="primary"
-          type="button"
         >
           ▶ Execute Functional Run
         </button>
@@ -972,6 +1450,7 @@ function addEngineControls() {
       </div>
 
     </div>
+
   `;
 
 
@@ -983,48 +1462,68 @@ function addEngineControls() {
 
   if (main) {
 
-    main.insertBefore(
-      section,
-      main.firstChild
-    );
+    /*
+       Insert after hero section,
+       preserving the existing app.
+    */
+
+    const hero =
+      main.querySelector(
+        ".hero"
+      );
+
+    if (
+      hero &&
+      hero.nextSibling
+    ) {
+
+      main.insertBefore(
+        section,
+        hero.nextSibling
+      );
+
+    }
+
+    else {
+
+      main.insertBefore(
+        section,
+        main.firstChild
+      );
+    }
   }
 
 
-  /* -----------------------------------------
-     TEST BACKEND BUTTON
-     ----------------------------------------- */
-
-  const connectBtn =
+  const connectButton =
     document.getElementById(
       "connectBtn"
     );
 
 
-  if (connectBtn) {
+  if (connectButton) {
 
-    connectBtn.addEventListener(
+    connectButton.addEventListener(
       "click",
       async () => {
 
+        const input =
+          document.getElementById(
+            "apiInput"
+          );
+
+
         const value =
-          document
-            .getElementById(
-              "apiInput"
-            )
-            .value
-            .trim()
-            .replace(/\/$/, "");
+          input
+            ? input.value
+                .trim()
+                .replace(/\/$/, "")
+            : DEFAULT_API;
 
 
         if (!value) {
           return;
         }
 
-
-        /*
-          Update the actual runtime
-          API_BASE value.
-        */
 
         API_BASE =
           value;
@@ -1047,8 +1546,11 @@ function addEngineControls() {
         if (data) {
 
           alert(
-            `Connected successfully to ${data.service}\n` +
-            `Engine: ${data.engine}`
+            `Connected successfully to ${
+              data.service
+            }\n\nEngine: ${
+              data.engine
+            }`
           );
         }
       }
@@ -1056,44 +1558,36 @@ function addEngineControls() {
   }
 
 
-  /* -----------------------------------------
-     EXECUTE FUNCTIONAL RUN BUTTON
-     ----------------------------------------- */
-
-  const executeBtn =
+  const executeButton =
     document.getElementById(
       "executeBtn"
     );
 
 
-  if (executeBtn) {
+  if (executeButton) {
 
-    executeBtn.addEventListener(
+    executeButton.addEventListener(
       "click",
       async () => {
 
-        console.log(
-          "MOTHER INP 7.5: Execute button clicked"
-        );
+        const candidate =
+          document.getElementById(
+            "candidateInput"
+          );
+
+        const name =
+          document.getElementById(
+            "candidateNameInput"
+          );
 
 
         currentRun.candidate_id =
-          document
-            .getElementById(
-              "candidateInput"
-            )
-            .value
-            .trim() ||
+          candidate?.value.trim() ||
           "C001";
 
 
         currentRun.name =
-          document
-            .getElementById(
-              "candidateNameInput"
-            )
-            .value
-            .trim() ||
+          name?.value.trim() ||
           "MOTHER INP 7.5 Functional Test";
 
 
@@ -1104,18 +1598,13 @@ function addEngineControls() {
 }
 
 
-/* =========================================================
-   APPLICATION STARTUP
-   ========================================================= */
+/* ============================================================
+   INITIALIZATION
+   ============================================================ */
 
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
-
-    console.log(
-      "MOTHER INP 7.5 frontend starting..."
-    );
-
 
     renderRun(
       currentRun
@@ -1129,16 +1618,16 @@ document.addEventListener(
 
 
     /*
-      Service worker intentionally disabled
-      during live API validation.
+       We deliberately do NOT register the
+       service worker here.
 
-      This prevents an old/broken cached
-      application from interfering with
-      the live INP frontend.
+       This prevents an old cached frontend
+       from hiding the newly rendered results.
     */
 
     console.log(
-      "MOTHER INP 7.5 frontend ready."
+      "MOTHER INP 7.5 frontend initialized."
     );
+
   }
 );
