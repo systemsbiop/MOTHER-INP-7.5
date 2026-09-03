@@ -4,7 +4,7 @@
    For the live GitHub Pages site, set window.INP_API_BASE to your public HTTPS API.
 */
 
-const LOCAL_API = "http://127.0.0.1:8000";
+const LOCAL_API = "https://mother-inp-7-5-backend.onrender.com";
 const API_BASE = (window.INP_API_BASE || localStorage.getItem("inp_api_base") || LOCAL_API).replace(/\/$/, "");
 
 let currentRun = {
