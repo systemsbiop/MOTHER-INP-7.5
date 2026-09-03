@@ -6,7 +6,7 @@ const FILES_TO_CACHE = [
   "./style.css",
   "./app.js",
   "./manifest.json",
-  "./assets/inp-logo.jpeg"
+  "./assets/inp7.5.jpg
 ];
 
 self.addEventListener("install", event => {
