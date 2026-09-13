@@ -1,18 +1,28 @@
 from pathlib import Path
 
-code = r'''/* ============================================================
-   MOTHER INP 7.5.0
-   Fresh frontend controller
-   - Works with the existing index.html
-   - Creates the Live INP 7.5 control panel
-   - Wires every existing inline button/module
-   - Tests /health
-   - Executes /v1/run
-   - Renders returned INP results
-   - Provides disease input for the next engine stage
+app_js = r'''/* ============================================================
+   MOTHER INP 7.5.0 — FRESH FRONTEND
+   ------------------------------------------------------------
+   Works with the existing index.html.
+
+   Goals:
+   1. Create a single Live INP 7.5 control panel.
+   2. Accept either a disease OR a molecule.
+   3. Test the FastAPI /health endpoint.
+   4. Execute /v1/run.
+   5. Make all 11 layer cards interactive.
+   6. Show layer-specific backend data when available.
+   7. Never invent scientific results when the backend has
+      not supplied them.
+   8. Preserve the existing inline onclick functions in
+      index.html.
    ============================================================ */
 
 "use strict";
+
+/* ============================================================
+   CONFIGURATION
+   ============================================================ */
 
 const DEFAULT_API =
   "https://mother-inp-7-5-backend.onrender.com";
@@ -23,44 +33,33 @@ let API_BASE = (
   DEFAULT_API
 ).replace(/\/$/, "");
 
+/* ============================================================
+   APPLICATION STATE
+   ============================================================ */
+
 let currentRun = {
   version: "7.5.0",
   run_id: "",
   candidate_id: "C001",
   name: "",
+  input_type: "",
   disease: "",
-  layers: [],
+  molecule: "",
+  query: "",
   status: "Ready",
-  translation: "GREY"
+  translation: "GREY",
+  layers: [],
+  raw: null
 };
 
+let lastBackendHealth = null;
 
 /* ============================================================
-   HELPERS
+   DOM HELPERS
    ============================================================ */
 
 function byId(id) {
   return document.getElementById(id);
-}
-
-function setStatus(text, ok = true) {
-  const runStatus = byId("runStatus");
-  const systemStatus = byId("systemStatus");
-  const dot = document.querySelector(".status-dot");
-
-  if (runStatus) runStatus.textContent = text;
-
-  if (systemStatus) {
-    systemStatus.textContent =
-      ok ? "System Ready" : "Backend Error";
-  }
-
-  if (dot) {
-    dot.title =
-      `${ok ? "Connected" : "Error"}: ${text}`;
-  }
-
-  console.log(`MOTHER INP STATUS: ${text}`);
 }
 
 function escapeHtml(value) {
@@ -72,6 +71,29 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function setStatus(text, ok = true) {
+  const systemStatus = byId("systemStatus");
+  const runStatus = byId("runStatus");
+  const dot = document.querySelector(".status-dot");
+
+  if (systemStatus) {
+    systemStatus.textContent =
+      ok ? "System Ready" : "Backend Error";
+  }
+
+  if (runStatus) {
+    runStatus.textContent = text;
+  }
+
+  if (dot) {
+    dot.title = text;
+  }
+
+  console.log(
+    `MOTHER INP STATUS: ${text}`
+  );
+}
+
 function resultCard(label, value) {
   return `
     <div style="
@@ -79,7 +101,6 @@ function resultCard(label, value) {
       border-radius:10px;
       border:1px solid #e2e8f0;
       background:#f8fafc;
-      min-width:0;
     ">
       <div style="
         font-size:10px;
@@ -88,62 +109,86 @@ function resultCard(label, value) {
         letter-spacing:.6px;
         opacity:.6;
         margin-bottom:5px;
-      ">${escapeHtml(label)}</div>
+      ">
+        ${escapeHtml(label)}
+      </div>
+
       <div style="
         font-size:14px;
         font-weight:700;
         word-break:break-word;
-      ">${escapeHtml(value)}</div>
+      ">
+        ${escapeHtml(value)}
+      </div>
     </div>
   `;
 }
 
-
 /* ============================================================
-   API
+   API CLIENT
    ============================================================ */
 
-async function api(path, options = {}) {
-  const controller = new AbortController();
+async function apiRequest(path, options = {}) {
 
-  const timeout = setTimeout(
-    () => controller.abort(),
-    30000
-  );
+  const controller =
+    new AbortController();
 
-  try {
-    const response = await fetch(
-      `${API_BASE}${path}`,
-      {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          ...(options.body
-            ? { "Content-Type": "application/json" }
-            : {}),
-          ...(options.headers || {})
-        }
-      }
+  const timeout =
+    setTimeout(
+      () => controller.abort(),
+      30000
     );
 
-    const text = await response.text();
+  try {
+
+    const response =
+      await fetch(
+        `${API_BASE}${path}`,
+        {
+          ...options,
+          signal:
+            controller.signal,
+          headers: {
+            Accept:
+              "application/json",
+            ...(options.body
+              ? {
+                  "Content-Type":
+                    "application/json"
+                }
+              : {}),
+            ...(options.headers || {})
+          }
+        }
+      );
+
+    const text =
+      await response.text();
 
     let data = {};
 
     if (text) {
+
       try {
-        data = JSON.parse(text);
-      } catch {
-        data = { raw: text };
+        data =
+          JSON.parse(text);
+      }
+
+      catch {
+        data = {
+          raw: text
+        };
       }
     }
 
     if (!response.ok) {
+
       const message =
         data?.detail ||
         data?.message ||
+        data?.error ||
         response.statusText ||
-        "Unknown backend error";
+        "Backend request failed.";
 
       throw new Error(
         `${response.status}: ${message}`
@@ -152,82 +197,77 @@ async function api(path, options = {}) {
 
     return data;
 
-  } catch (error) {
+  }
 
-    if (error.name === "AbortError") {
+  catch (error) {
+
+    if (
+      error?.name ===
+      "AbortError"
+    ) {
       throw new Error(
         "Backend request timed out after 30 seconds."
       );
     }
 
     if (
-      error instanceof TypeError &&
-      /fetch/i.test(error.message)
+      error instanceof TypeError
     ) {
       throw new Error(
-        "Unable to reach backend. Check the API URL and CORS configuration."
+        "Unable to reach the backend. Check the API URL and CORS configuration."
       );
     }
 
     throw error;
 
-  } finally {
+  }
+
+  finally {
     clearTimeout(timeout);
   }
 }
-
-
-/* ============================================================
-   CURRENT RUN
-   ============================================================ */
-
-function renderRun(run) {
-  currentRun = run || currentRun;
-
-  const id = byId("runId");
-  const version = byId("version");
-  const status = byId("runStatus");
-
-  if (id) {
-    id.textContent =
-      currentRun.run_id || "Not started";
-  }
-
-  if (version) {
-    version.textContent =
-      currentRun.version || "7.5.0";
-  }
-
-  if (status) {
-    const translation =
-      currentRun.translation
-        ? ` — ${currentRun.translation}`
-        : "";
-
-    status.textContent =
-      `${currentRun.status || "Ready"}${translation}`;
-  }
-}
-
 
 /* ============================================================
    BACKEND HEALTH
    ============================================================ */
 
 async function checkBackend() {
-  try {
-    setStatus("Testing backend…");
 
-    const data = await api("/health");
+  setStatus(
+    "Testing backend…"
+  );
+
+  try {
+
+    const data =
+      await apiRequest(
+        "/health"
+      );
+
+    lastBackendHealth =
+      data;
 
     setStatus(
-      `Backend OK — ${data.service || "MOTHER INP 7.5"}`,
+      `Backend OK — ${
+        data?.service ||
+        "MOTHER INP 7.5"
+      }`,
       true
+    );
+
+    console.log(
+      "MOTHER INP backend health:",
+      data
     );
 
     return data;
 
-  } catch (error) {
+  }
+
+  catch (error) {
+
+    lastBackendHealth =
+      null;
 
     setStatus(
       `Backend unavailable — ${error.message}`,
@@ -243,144 +283,151 @@ async function checkBackend() {
   }
 }
 
-
 /* ============================================================
-   NEW RUN
+   INPUT TYPE DETECTION
+   ------------------------------------------------------------
+   This is deliberately conservative. It does NOT claim that
+   a term is a disease or molecule from a scientific database.
+   The user may explicitly select the input type.
    ============================================================ */
 
-async function newRun() {
-  try {
-    setStatus("Creating INP run…");
+function getInputState() {
 
-    const candidate =
-      currentRun.candidate_id || "C001";
+  const input =
+    byId("inpQueryInput");
 
-    const name =
-      currentRun.name ||
-      currentRun.disease ||
-      "MOTHER INP 7.5 Run";
+  const type =
+    byId("inpInputType");
 
-    const data = await api(
-      `/v1/new-run?candidate_id=${encodeURIComponent(candidate)}&name=${encodeURIComponent(name)}`,
-      { method: "POST" }
-    );
+  const query =
+    input?.value.trim() || "";
 
-    currentRun.run_id =
-      data.run_id || "";
-
-    currentRun.version =
-      data.version || "7.5.0";
-
-    currentRun.status =
-      "Run created";
-
-    renderRun(currentRun);
-
-    setStatus(
-      `Run created: ${currentRun.run_id}`
-    );
-
-    alert(
-      `MOTHER INP 7.5 run created\n\nRun ID: ${currentRun.run_id}`
-    );
-
-    return data;
-
-  } catch (error) {
-
-    setStatus(
-      `Run creation failed — ${error.message}`,
-      false
-    );
-
-    alert(
-      `MOTHER INP backend error:\n\n${error.message}`
-    );
-
-    return null;
-  }
-}
-
-
-/* ============================================================
-   BUILD DISEASE PAYLOAD
-   ============================================================ */
-
-function buildDiseasePayload() {
-
-  const diseaseInput = byId("diseaseInput");
-  const candidateInput = byId("candidateInput");
-  const candidateNameInput = byId("candidateNameInput");
-
-  const disease =
-    diseaseInput?.value.trim() ||
-    candidateNameInput?.value.trim() ||
-    "";
-
-  const candidateId =
-    candidateInput?.value.trim() ||
-    "C001";
-
-  const name =
-    candidateNameInput?.value.trim() ||
-    disease ||
-    "MOTHER INP 7.5 Disease Run";
-
-  /*
-     The layer records below preserve the INP architecture.
-     The backend remains responsible for authoritative
-     calculations and evidence classification.
-  */
-
-  const layers = Array.from(
-    { length: 11 },
-    (_, index) => ({
-      layer: `L${index + 1}`,
-      status: "PENDING",
-      score: null,
-      failure_nodes: [],
-      notes:
-        "Awaiting backend analysis for supplied disease."
-    })
-  );
+  const selectedType =
+    type?.value || "auto";
 
   return {
-    candidate_id: candidateId,
-    name,
-    disease,
-    query: disease,
-    version: "7.5.0",
-    layers,
-    run_id: currentRun.run_id || "",
-    parent_run_id: null
+    query,
+    selectedType
   };
 }
 
+function resolveInputType(query, selectedType) {
+
+  if (selectedType === "disease") {
+    return "disease";
+  }
+
+  if (selectedType === "molecule") {
+    return "molecule";
+  }
+
+  /*
+     Auto mode is intentionally labelled "research input".
+     The backend remains authoritative for biological
+     interpretation.
+  */
+
+  return "research";
+}
 
 /* ============================================================
-   FUNCTIONAL / DISEASE RUN
+   CREATE / UPDATE CURRENT RUN
+   ============================================================ */
+
+function buildRunPayload() {
+
+  const inputState =
+    getInputState();
+
+  if (!inputState.query) {
+
+    throw new Error(
+      "Please enter a disease or molecule."
+    );
+  }
+
+  const inputType =
+    resolveInputType(
+      inputState.query,
+      inputState.selectedType
+    );
+
+  const candidateId =
+    byId("candidateInput")
+      ?.value.trim() ||
+    "C001";
+
+  const runName =
+    byId("candidateNameInput")
+      ?.value.trim() ||
+    inputState.query;
+
+  const payload = {
+
+    candidate_id:
+      candidateId,
+
+    name:
+      runName,
+
+    version:
+      "7.5.0",
+
+    query:
+      inputState.query,
+
+    input:
+      inputState.query,
+
+    input_type:
+      inputType,
+
+    disease:
+      inputType === "disease"
+        ? inputState.query
+        : "",
+
+    molecule:
+      inputType === "molecule"
+        ? inputState.query
+        : "",
+
+    /*
+       Keep this compatible with the existing backend
+       functional-run contract while exposing the new
+       disease/molecule semantics.
+    */
+
+    run_id:
+      currentRun.run_id || "",
+
+    layers:
+      []
+  };
+
+  return payload;
+}
+
+/* ============================================================
+   EXECUTE REAL BACKEND RUN
    ============================================================ */
 
 async function executeFunctionalTest() {
 
-  const button = byId("executeBtn");
+  const executeButton =
+    byId("executeBtn");
 
-  if (button) {
-    button.disabled = true;
-    button.textContent =
-      "⏳ Running MOTHER INP…";
+  if (executeButton) {
+    executeButton.disabled =
+      true;
+    executeButton.textContent =
+      "⏳ Running INP…";
   }
 
   try {
 
     const payload =
-      buildDiseasePayload();
-
-    if (!payload.disease) {
-      throw new Error(
-        "Please enter a disease or research condition first."
-      );
-    }
+      buildRunPayload();
 
     currentRun.candidate_id =
       payload.candidate_id;
@@ -388,301 +435,526 @@ async function executeFunctionalTest() {
     currentRun.name =
       payload.name;
 
+    currentRun.query =
+      payload.query;
+
+    currentRun.input_type =
+      payload.input_type;
+
     currentRun.disease =
       payload.disease;
 
+    currentRun.molecule =
+      payload.molecule;
+
     setStatus(
-      `Executing INP 7.5 for ${payload.disease}…`
+      `Executing INP 7.5 — ${payload.query}…`
     );
 
     console.log(
-      "MOTHER INP disease payload:",
+      "MOTHER INP 7.5 request:",
       payload
     );
 
-    const data = await api(
-      "/v1/run",
-      {
-        method: "POST",
-        body: JSON.stringify(payload)
-      }
-    );
+    const response =
+      await apiRequest(
+        "/v1/run",
+        {
+          method: "POST",
+          body:
+            JSON.stringify(payload)
+        }
+      );
+
+    currentRun.raw =
+      response;
+
+    /*
+       Support several common response envelopes.
+    */
 
     const returnedRun =
-      data?.run || data;
-
-    if (!returnedRun) {
-      throw new Error(
-        "Backend returned no INP run."
-      );
-    }
+      response?.run ||
+      response?.result ||
+      response?.data ||
+      response;
 
     currentRun = {
-      ...returnedRun,
+      ...currentRun,
+      ...(returnedRun || {}),
+      raw:
+        response,
+      query:
+        returnedRun?.query ||
+        currentRun.query,
       disease:
-        returnedRun.disease ||
-        payload.disease,
+        returnedRun?.disease ||
+        currentRun.disease,
+      molecule:
+        returnedRun?.molecule ||
+        currentRun.molecule,
+      input_type:
+        returnedRun?.input_type ||
+        currentRun.input_type,
       status:
-        returnedRun.status ||
-        "Completed"
+        returnedRun?.status ||
+        "Completed",
+      version:
+        returnedRun?.version ||
+        "7.5.0"
     };
 
-    renderRun(currentRun);
+    renderRun(
+      currentRun
+    );
 
     setStatus(
-      `Engine completed — ${
-        currentRun.translation || "GREY"
+      `INP run completed — ${
+        currentRun.translation ||
+        "GREY"
       }`,
       true
     );
 
-    showResult(currentRun);
+    showResult(
+      currentRun
+    );
 
     return currentRun;
 
-  } catch (error) {
+  }
+
+  catch (error) {
 
     console.error(
-      "MOTHER INP execution error:",
+      "MOTHER INP 7.5 execution error:",
       error
     );
 
     setStatus(
-      `Engine execution failed — ${error.message}`,
+      `INP execution failed — ${error.message}`,
       false
     );
 
-    alert(
-      `MOTHER INP engine error:\n\n${error.message}`
+    showErrorPanel(
+      "INP execution failed",
+      error.message
     );
 
     return null;
 
-  } finally {
+  }
 
-    if (button) {
-      button.disabled = false;
-      button.textContent =
+  finally {
+
+    if (executeButton) {
+
+      executeButton.disabled =
+        false;
+
+      executeButton.textContent =
         "▶ Execute Functional Run";
     }
   }
 }
 
+/* ============================================================
+   NEW BACKEND RUN
+   ============================================================ */
+
+async function newRun() {
+
+  const query =
+    byId("inpQueryInput")
+      ?.value.trim() ||
+    currentRun.query ||
+    "";
+
+  const candidateId =
+    byId("candidateInput")
+      ?.value.trim() ||
+    "C001";
+
+  const name =
+    byId("candidateNameInput")
+      ?.value.trim() ||
+    query ||
+    "MOTHER INP 7.5 Run";
+
+  try {
+
+    setStatus(
+      "Creating new INP run…"
+    );
+
+    const params =
+      new URLSearchParams({
+        candidate_id:
+          candidateId,
+        name:
+          name
+      });
+
+    const response =
+      await apiRequest(
+        `/v1/new-run?${params.toString()}`,
+        {
+          method: "POST"
+        }
+      );
+
+    const returned =
+      response?.run ||
+      response;
+
+    currentRun = {
+      ...currentRun,
+      ...(returned || {}),
+      candidate_id:
+        candidateId,
+      name:
+        name,
+      query:
+        query,
+      status:
+        returned?.status ||
+        "Created"
+    };
+
+    renderRun(
+      currentRun
+    );
+
+    setStatus(
+      `Run created — ${
+        currentRun.run_id ||
+        "ready"
+      }`
+    );
+
+    return currentRun;
+
+  }
+
+  catch (error) {
+
+    setStatus(
+      `New run failed — ${error.message}`,
+      false
+    );
+
+    showErrorPanel(
+      "Could not create INP run",
+      error.message
+    );
+
+    return null;
+  }
+}
 
 /* ============================================================
-   LIVE ENGINE CONTROLS
+   RUN DISPLAY
+   ============================================================ */
+
+function renderRun(run) {
+
+  const runId =
+    byId("runId");
+
+  const version =
+    byId("version");
+
+  const status =
+    byId("runStatus");
+
+  if (runId) {
+    runId.textContent =
+      run?.run_id ||
+      "Not started";
+  }
+
+  if (version) {
+    version.textContent =
+      run?.version ||
+      "7.5.0";
+  }
+
+  if (status) {
+
+    status.textContent =
+      run?.status ||
+      "Ready";
+  }
+}
+
+/* ============================================================
+   ENGINE CONTROL PANEL
    ============================================================ */
 
 function addEngineControls() {
 
-  let section =
+  /*
+     Remove any old/partial panel.
+     This makes the frontend self-healing after previous
+     versions of app.js created incompatible controls.
+  */
+
+  const oldPanel =
     byId("engineControls");
 
-  /*
-     If a stale/partial section exists, remove it.
-     This guarantees that all required controls exist.
-  */
-
-  const requiredIds = [
-    "connectBtn",
-    "executeBtn",
-    "candidateInput",
-    "candidateNameInput",
-    "apiInput",
-    "diseaseInput"
-  ];
-
-  const complete =
-    section &&
-    requiredIds.every(
-      id => byId(id)
-    );
-
-  if (section && !complete) {
-    section.remove();
-    section = null;
+  if (oldPanel) {
+    oldPanel.remove();
   }
 
-  /*
-     Create the panel.
-  */
+  const section =
+    document.createElement("section");
 
-  if (!section) {
+  section.id =
+    "engineControls";
 
-    section =
-      document.createElement("section");
+  section.className =
+    "panel";
 
-    section.id =
-      "engineControls";
+  section.innerHTML = `
 
-    section.className =
-      "panel";
+    <div class="section-kicker">
+      LIVE COMPUTATIONAL ENGINE
+    </div>
 
-    section.innerHTML = `
+    <h2>
+      ⚙️ Live INP 7.5 Engine
+    </h2>
 
-      <div class="section-kicker">
-        LIVE COMPUTATIONAL ENGINE
-      </div>
+    <p>
+      Enter a disease or molecule. The connected MOTHER
+      INP 7.5 backend remains the authoritative source for
+      molecular, pathway, network, evidence and translation
+      results.
+    </p>
 
-      <h2>
-        ⚙️ Live INP 7.5 Engine
-      </h2>
+    <div style="
+      display:grid;
+      gap:11px;
+      max-width:780px;
+    ">
 
-      <p>
-        Enter any disease or research condition and execute
-        the connected MOTHER INP 7.5 backend.
-      </p>
+      <label>
+        Input Type
+
+        <select
+          id="inpInputType"
+          style="
+            width:100%;
+            padding:11px;
+            box-sizing:border-box;
+          "
+        >
+          <option value="auto">
+            Auto / Research Input
+          </option>
+
+          <option value="disease">
+            Disease
+          </option>
+
+          <option value="molecule">
+            Molecule
+          </option>
+        </select>
+      </label>
+
+      <label>
+        Disease / Molecule
+
+        <input
+          id="inpQueryInput"
+          type="text"
+          placeholder="e.g. Diabetes mellitus or Curcumin"
+          autocomplete="off"
+          style="
+            width:100%;
+            padding:11px;
+            box-sizing:border-box;
+          "
+        >
+      </label>
+
+      <label>
+        Candidate ID
+
+        <input
+          id="candidateInput"
+          type="text"
+          value="C001"
+          style="
+            width:100%;
+            padding:11px;
+            box-sizing:border-box;
+          "
+        >
+      </label>
+
+      <label>
+        Candidate / Run Name
+
+        <input
+          id="candidateNameInput"
+          type="text"
+          placeholder="Optional — defaults to input"
+          style="
+            width:100%;
+            padding:11px;
+            box-sizing:border-box;
+          "
+        >
+      </label>
+
+      <label>
+        Backend API URL
+
+        <input
+          id="apiInput"
+          type="url"
+          value="${escapeHtml(API_BASE)}"
+          style="
+            width:100%;
+            padding:11px;
+            box-sizing:border-box;
+          "
+        >
+      </label>
 
       <div style="
-        display:grid;
+        display:flex;
         gap:10px;
-        max-width:760px;
+        flex-wrap:wrap;
+        margin-top:4px;
       ">
 
-        <label>
-          Disease / Research Condition
+        <button
+          id="connectBtn"
+          type="button"
+        >
+          🔌 Test Backend
+        </button>
 
-          <input
-            id="diseaseInput"
-            type="text"
-            placeholder="e.g. Diabetes mellitus"
-            autocomplete="off"
-            style="
-              width:100%;
-              padding:11px;
-              box-sizing:border-box;
-            "
-          >
-        </label>
+        <button
+          id="newRunBtn"
+          type="button"
+        >
+          ➕ New INP Run
+        </button>
 
-        <label>
-          Candidate ID
-
-          <input
-            id="candidateInput"
-            value="C001"
-            style="
-              width:100%;
-              padding:11px;
-              box-sizing:border-box;
-            "
-          >
-        </label>
-
-        <label>
-          Candidate / Run Name
-
-          <input
-            id="candidateNameInput"
-            value=""
-            placeholder="Optional — defaults to disease"
-            style="
-              width:100%;
-              padding:11px;
-              box-sizing:border-box;
-            "
-          >
-        </label>
-
-        <label>
-          Backend API URL
-
-          <input
-            id="apiInput"
-            value="${escapeHtml(API_BASE)}"
-            style="
-              width:100%;
-              padding:11px;
-              box-sizing:border-box;
-            "
-          >
-        </label>
-
-        <div style="
-          display:flex;
-          gap:10px;
-          flex-wrap:wrap;
-          margin-top:4px;
-        ">
-
-          <button
-            id="connectBtn"
-            type="button"
-          >
-            🔌 Test Backend
-          </button>
-
-          <button
-            id="executeBtn"
-            type="button"
-            class="primary"
-          >
-            ▶ Execute Functional Run
-          </button>
-
-        </div>
+        <button
+          id="executeBtn"
+          type="button"
+          class="primary"
+        >
+          ▶ Execute INP Analysis
+        </button>
 
       </div>
-    `;
 
-    const main =
-      document.querySelector("main");
+      <div
+        id="engineMessage"
+        style="
+          display:none;
+          padding:12px;
+          border-radius:9px;
+          border:1px solid #dbe4ec;
+          background:#f8fafc;
+          font-size:12px;
+          line-height:1.5;
+        "
+      ></div>
 
-    if (main) {
+    </div>
+  `;
 
-      const hero =
-        main.querySelector(".hero");
+  const main =
+    document.querySelector("main");
 
-      if (hero) {
-        hero.insertAdjacentElement(
-          "afterend",
-          section
-        );
-      } else {
-        main.prepend(section);
-      }
+  if (main) {
 
+    const hero =
+      main.querySelector(".hero");
+
+    if (hero) {
+      hero.insertAdjacentElement(
+        "afterend",
+        section
+      );
     } else {
-      document.body.prepend(section);
+      main.prepend(
+        section
+      );
     }
+
+  } else {
+
+    document.body.prepend(
+      section
+    );
   }
 
-  /*
-     Re-read elements after creation.
-  */
+  wireEngineControls();
+}
+
+/* ============================================================
+   WIRE ENGINE CONTROLS
+   ============================================================ */
+
+function wireEngineControls() {
 
   const connectButton =
     byId("connectBtn");
 
+  const newRunButton =
+    byId("newRunBtn");
+
   const executeButton =
     byId("executeBtn");
-
-  const candidateInput =
-    byId("candidateInput");
-
-  const candidateNameInput =
-    byId("candidateNameInput");
 
   const apiInput =
     byId("apiInput");
 
-  const diseaseInput =
-    byId("diseaseInput");
-
+  const queryInput =
+    byId("inpQueryInput");
 
   if (apiInput) {
-    apiInput.value = API_BASE;
+
+    apiInput.value =
+      API_BASE;
+
+    apiInput.addEventListener(
+      "change",
+      () => {
+
+        const value =
+          apiInput.value
+            .trim()
+            .replace(/\/$/, "");
+
+        if (!value) return;
+
+        API_BASE =
+          value;
+
+        localStorage.setItem(
+          "inp_api_base",
+          value
+        );
+
+        window.INP_API_BASE =
+          value;
+      }
+    );
   }
-
-
-  /*
-     Test Backend
-  */
 
   if (connectButton) {
 
     connectButton.onclick =
-      async function () {
+      async () => {
 
         const value =
           apiInput?.value
@@ -690,7 +962,8 @@ function addEngineControls() {
             .replace(/\/$/, "") ||
           DEFAULT_API;
 
-        API_BASE = value;
+        API_BASE =
+          value;
 
         localStorage.setItem(
           "inp_api_base",
@@ -700,7 +973,8 @@ function addEngineControls() {
         window.INP_API_BASE =
           value;
 
-        connectButton.disabled = true;
+        connectButton.disabled =
+          true;
 
         connectButton.textContent =
           "⏳ Testing…";
@@ -711,8 +985,9 @@ function addEngineControls() {
             await checkBackend();
 
           if (data) {
+
             alert(
-              `Connected successfully!\n\n` +
+              `MOTHER INP 7.5 Backend Connected\n\n` +
               `Service: ${
                 data.service ||
                 "MOTHER INP 7.5"
@@ -724,9 +999,12 @@ function addEngineControls() {
             );
           }
 
-        } finally {
+        }
 
-          connectButton.disabled = false;
+        finally {
+
+          connectButton.disabled =
+            false;
 
           connectButton.textContent =
             "🔌 Test Backend";
@@ -734,76 +1012,847 @@ function addEngineControls() {
       };
   }
 
+  if (newRunButton) {
 
-  /*
-     Execute
-  */
+    newRunButton.onclick =
+      () => newRun();
+  }
 
   if (executeButton) {
 
     executeButton.onclick =
-      async function () {
-
-        if (
-          diseaseInput &&
-          !diseaseInput.value.trim() &&
-          candidateNameInput
-        ) {
-          diseaseInput.value =
-            candidateNameInput.value.trim();
-        }
-
-        currentRun.candidate_id =
-          candidateInput?.value.trim() ||
-          "C001";
-
-        currentRun.name =
-          candidateNameInput?.value.trim() ||
-          diseaseInput?.value.trim() ||
-          "MOTHER INP 7.5 Disease Run";
-
-        currentRun.disease =
-          diseaseInput?.value.trim() ||
-          currentRun.name;
-
-        await executeFunctionalTest();
-      };
+      () =>
+        executeFunctionalTest();
   }
 
+  if (queryInput) {
 
-  /*
-     Enter key in disease box executes the run.
-  */
-
-  if (diseaseInput) {
-
-    diseaseInput.onkeydown =
-      function (event) {
+    queryInput.addEventListener(
+      "keydown",
+      event => {
 
         if (
-          event.key === "Enter" &&
-          executeButton
+          event.key === "Enter"
         ) {
+
           event.preventDefault();
-          executeButton.click();
-        }
-      };
-  }
 
+          executeButton?.click();
+        }
+      }
+    );
+  }
 
   console.log(
     "MOTHER INP 7.5 controls connected:",
     {
-      apiInput: !!apiInput,
-      candidateInput: !!candidateInput,
-      candidateNameInput: !!candidateNameInput,
-      diseaseInput: !!diseaseInput,
-      connectButton: !!connectButton,
-      executeButton: !!executeButton
+      apiInput:
+        !!byId("apiInput"),
+      candidateInput:
+        !!byId("candidateInput"),
+      candidateNameInput:
+        !!byId("candidateNameInput"),
+      diseaseMoleculeInput:
+        !!byId("inpQueryInput"),
+      connectButton:
+        !!byId("connectBtn"),
+      executeButton:
+        !!byId("executeBtn")
     }
   );
 }
 
+/* ============================================================
+   LAYER BUTTONS
+   ============================================================ */
+
+const LAYER_NAMES = {
+
+  1:
+    "Disease + Genomic Context",
+
+  2:
+    "MCheM / Physicochemistry",
+
+  3:
+    "Absorption / Exposure",
+
+  4:
+    "Metabolism / ADME",
+
+  5:
+    "Cellular Action",
+
+  6:
+    "Target / Pathway",
+
+  7:
+    "Tissue / Organ",
+
+  8:
+    "Network Pharmacology",
+
+  9:
+    "Time / Adaptation",
+
+  10:
+    "Safety / Selectivity",
+
+  11:
+    "TIME™ Translation"
+};
+
+const LAYER_DESCRIPTIONS = {
+
+  1:
+    "Disease phenotype, biological context and genomic associations.",
+
+  2:
+    "Molecular identity, chemical descriptors and physicochemical properties.",
+
+  3:
+    "Absorption, bioavailability, distribution and target-site exposure.",
+
+  4:
+    "Metabolism, ADME, parent compound and metabolite disposition.",
+
+  5:
+    "Cellular response and mechanism of action.",
+
+  6:
+    "Molecular targets, interactions and biological pathways.",
+
+  7:
+    "Tissue and organ relevance of the molecular or disease signal.",
+
+  8:
+    "Network propagation, convergence, failure nodes and restoration nodes.",
+
+  9:
+    "Temporal behaviour, adaptation and dynamic response.",
+
+  10:
+    "Safety, selectivity, toxicity, uncertainty and exposure gates.",
+
+  11:
+    "TIME™ translational integration, phenotype and decision guidance."
+};
+
+function openEngine(layer) {
+
+  const query =
+    byId("inpQueryInput")
+      ?.value.trim() ||
+    currentRun.query ||
+    "";
+
+  if (!query) {
+
+    alert(
+      "Please enter a disease or molecule first.\n\n" +
+      "Examples:\n" +
+      "• Diabetes mellitus\n" +
+      "• Psoriasis\n" +
+      "• Curcumin\n" +
+      "• Berberine"
+    );
+
+    byId("inpQueryInput")
+      ?.focus();
+
+    return;
+  }
+
+  showLayerResult(
+    layer,
+    query
+  );
+}
+
+/* ============================================================
+   LAYER RESULT PANEL
+   ============================================================ */
+
+function ensureLayerResultPanel() {
+
+  let panel =
+    byId("inpLayerResultPanel");
+
+  if (panel) {
+    return panel;
+  }
+
+  panel =
+    document.createElement("section");
+
+  panel.id =
+    "inpLayerResultPanel";
+
+  panel.className =
+    "panel";
+
+  panel.style.cssText = `
+    display:block !important;
+    width:100%;
+    box-sizing:border-box;
+    margin:20px 0;
+    padding:24px;
+    background:#ffffff;
+    border:1px solid #d9e2ec;
+    border-radius:16px;
+    box-shadow:0 6px 20px rgba(15,23,42,.07);
+  `;
+
+  const main =
+    document.querySelector("main");
+
+  const architecture =
+    document.querySelector(
+      ".layer-grid"
+    )?.closest(".panel");
+
+  if (architecture) {
+
+    architecture.insertAdjacentElement(
+      "afterend",
+      panel
+    );
+
+  } else if (main) {
+
+    main.appendChild(
+      panel
+    );
+
+  } else {
+
+    document.body.appendChild(
+      panel
+    );
+  }
+
+  return panel;
+}
+
+/* ============================================================
+   FIND BACKEND LAYER RECORD
+   ============================================================ */
+
+function findLayerRecord(
+  run,
+  layerNumber
+) {
+
+  const layers =
+    Array.isArray(run?.layers)
+      ? run.layers
+      : [];
+
+  return (
+    layers.find(
+      item =>
+        String(
+          item?.layer
+        ) ===
+        `L${layerNumber}`
+    ) ||
+    layers.find(
+      item =>
+        Number(
+          item?.layer
+        ) ===
+        layerNumber
+    ) ||
+    null
+  );
+}
+
+/* ============================================================
+   RENDER INDIVIDUAL LAYER
+   ============================================================ */
+
+function showLayerResult(
+  layer,
+  query
+) {
+
+  const panel =
+    ensureLayerResultPanel();
+
+  const layerName =
+    LAYER_NAMES[layer] ||
+    `INP Layer ${layer}`;
+
+  const description =
+    LAYER_DESCRIPTIONS[layer] ||
+    "INP layer analysis.";
+
+  const record =
+    findLayerRecord(
+      currentRun,
+      layer
+    );
+
+  const hasRun =
+    !!currentRun?.raw;
+
+  const hasLayerData =
+    !!record;
+
+  panel.innerHTML = `
+
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:15px;
+      flex-wrap:wrap;
+      margin-bottom:20px;
+    ">
+
+      <div>
+
+        <div style="
+          font-size:11px;
+          font-weight:700;
+          letter-spacing:1px;
+          opacity:.6;
+          text-transform:uppercase;
+          margin-bottom:6px;
+        ">
+          MOTHER INP 7.5.0 —
+          LAYER ${String(layer).padStart(2,"0")}
+        </div>
+
+        <h2 style="
+          margin:0 0 7px 0;
+          font-size:23px;
+        ">
+          ${escapeHtml(layerName)}
+        </h2>
+
+        <p style="
+          margin:0;
+          line-height:1.6;
+          color:#52657a;
+        ">
+          ${escapeHtml(description)}
+        </p>
+
+      </div>
+
+      <div style="
+        padding:8px 13px;
+        border-radius:999px;
+        border:1px solid #d8e2ec;
+        background:#f5f9fc;
+        font-size:12px;
+        font-weight:700;
+      ">
+        INPUT:
+        ${escapeHtml(query)}
+      </div>
+
+    </div>
+
+    <div style="
+      display:grid;
+      grid-template-columns:
+        repeat(auto-fit,minmax(170px,1fr));
+      gap:12px;
+      margin-bottom:20px;
+    ">
+
+      ${resultCard(
+        "Layer",
+        `L${layer}`
+      )}
+
+      ${resultCard(
+        "Input",
+        query
+      )}
+
+      ${resultCard(
+        "Run",
+        currentRun?.run_id ||
+        "Not created"
+      )}
+
+      ${resultCard(
+        "Layer Data",
+        hasLayerData
+          ? "Returned"
+          : "Not returned"
+      )}
+
+    </div>
+
+    ${
+      hasLayerData
+        ? renderLayerBackendData(
+            record
+          )
+        : `
+          <div style="
+            padding:18px;
+            border-radius:12px;
+            border:1px solid #dce5ed;
+            background:#f8fafc;
+            line-height:1.65;
+          ">
+
+            <h3 style="
+              margin:0 0 9px 0;
+              font-size:16px;
+            ">
+              ${
+                hasRun
+                  ? "No dedicated L" +
+                    layer +
+                    " record returned"
+                  : "Layer ready for analysis"
+              }
+            </h3>
+
+            <p style="
+              margin:0;
+              color:#52657a;
+            ">
+              ${
+                hasRun
+                  ? "The backend completed a run, but its response did not contain a dedicated record for this layer. The frontend will not fabricate scientific values."
+                  : "Execute INP Analysis for this disease or molecule first. This layer will then display the corresponding backend evidence when supplied."
+              }
+            </p>
+
+          </div>
+        `
+    }
+
+    <div style="
+      margin-top:18px;
+      padding:15px;
+      border-left:4px solid #365b73;
+      background:#f7fafc;
+      line-height:1.65;
+      font-size:12px;
+    ">
+
+      <strong>Evidence Gate</strong>
+
+      <br>
+
+      INP distinguishes computational prediction,
+      curated/database evidence, experimental evidence
+      and human/clinical evidence. A missing field is
+      displayed as missing rather than being inferred as
+      a scientific fact.
+
+    </div>
+  `;
+
+  panel.scrollIntoView({
+    behavior:
+      "smooth",
+    block:
+      "start"
+  });
+}
+
+/* ============================================================
+   BACKEND LAYER DATA
+   ============================================================ */
+
+function renderLayerBackendData(
+  record
+) {
+
+  if (!record) {
+    return "";
+  }
+
+  const entries =
+    Object.entries(
+      record
+    );
+
+  return `
+    <div style="
+      padding:18px;
+      border:1px solid #dce5ed;
+      border-radius:12px;
+      background:#ffffff;
+    ">
+
+      <h3 style="
+        margin:0 0 12px 0;
+        font-size:16px;
+      ">
+        🔬 Backend Layer Result
+      </h3>
+
+      ${
+        entries.length
+          ? entries.map(
+              ([key,value]) => {
+
+                const display =
+                  typeof value ===
+                    "object" &&
+                  value !== null
+                    ? JSON.stringify(
+                        value,
+                        null,
+                        2
+                      )
+                    : String(
+                        value ??
+                        "—"
+                      );
+
+                return `
+                  <div style="
+                    padding:12px;
+                    margin:8px 0;
+                    border:1px solid #e2e8f0;
+                    border-radius:9px;
+                    background:#f8fafc;
+                  ">
+
+                    <div style="
+                      font-size:10px;
+                      font-weight:700;
+                      text-transform:uppercase;
+                      letter-spacing:.6px;
+                      opacity:.6;
+                      margin-bottom:5px;
+                    ">
+                      ${escapeHtml(key)}
+                    </div>
+
+                    <pre style="
+                      margin:0;
+                      white-space:pre-wrap;
+                      word-break:break-word;
+                      font-family:inherit;
+                      font-size:13px;
+                      line-height:1.5;
+                    ">${escapeHtml(display)}</pre>
+
+                  </div>
+                `;
+              }
+            ).join("")
+          : `
+            <p>
+              The backend returned an empty layer record.
+            </p>
+          `
+      }
+
+    </div>
+  `;
+}
+
+/* ============================================================
+   FULL RUN RESULT
+   ============================================================ */
+
+function showResult(
+  run
+) {
+
+  const panel =
+    ensureResultPanel();
+
+  const layers =
+    Array.isArray(run?.layers)
+      ? run.layers
+      : [];
+
+  const failureNodes =
+    Array.isArray(
+      run?.failure_nodes
+    )
+      ? run.failure_nodes
+      : [];
+
+  const restorationNodes =
+    Array.isArray(
+      run?.restoration_nodes
+    )
+      ? run.restoration_nodes
+      : [];
+
+  const targets =
+    Array.isArray(
+      run?.targets
+    )
+      ? run.targets
+      : [];
+
+  const pathways =
+    Array.isArray(
+      run?.pathways
+    )
+      ? run.pathways
+      : [];
+
+  panel.innerHTML = `
+
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:15px;
+      flex-wrap:wrap;
+      margin-bottom:18px;
+    ">
+
+      <div>
+
+        <div style="
+          font-size:11px;
+          font-weight:700;
+          letter-spacing:1px;
+          opacity:.6;
+          text-transform:uppercase;
+          margin-bottom:5px;
+        ">
+          MOTHER INP 7.5.0
+        </div>
+
+        <h2 style="
+          margin:0;
+          font-size:23px;
+        ">
+          INP Analysis Result
+        </h2>
+
+      </div>
+
+      <div style="
+        padding:8px 13px;
+        border-radius:999px;
+        background:#eef6f0;
+        border:1px solid #cfe3d4;
+        font-weight:700;
+        font-size:12px;
+      ">
+        ${escapeHtml(
+          run?.status ||
+          "Completed"
+        )}
+      </div>
+
+    </div>
+
+    <div style="
+      display:grid;
+      grid-template-columns:
+        repeat(auto-fit,minmax(160px,1fr));
+      gap:12px;
+    ">
+
+      ${resultCard(
+        "Input",
+        run?.query ||
+        run?.disease ||
+        run?.molecule ||
+        run?.name ||
+        "—"
+      )}
+
+      ${resultCard(
+        "Input Type",
+        run?.input_type ||
+        "—"
+      )}
+
+      ${resultCard(
+        "Run ID",
+        run?.run_id ||
+        "—"
+      )}
+
+      ${resultCard(
+        "Translation",
+        run?.translation ||
+        "GREY"
+      )}
+
+      ${resultCard(
+        "Priority",
+        String(
+          run?.overall_priority ??
+          run?.priority ??
+          "—"
+        )
+      )}
+
+      ${resultCard(
+        "Uncertainty",
+        String(
+          run?.overall_uncertainty ??
+          run?.uncertainty ??
+          "—"
+        )
+      )}
+
+    </div>
+
+    ${renderListSection(
+      "Failure Nodes",
+      failureNodes,
+      "⚠"
+    )}
+
+    ${renderListSection(
+      "Restoration Nodes",
+      restorationNodes,
+      "↻"
+    )}
+
+    ${renderListSection(
+      "Molecular Targets",
+      targets,
+      "🎯"
+    )}
+
+    ${renderListSection(
+      "Pathways",
+      pathways,
+      "🧬"
+    )}
+
+    <div style="
+      border-top:1px solid #e2e8f0;
+      padding-top:18px;
+      margin-top:20px;
+    ">
+
+      <h3 style="
+        margin:0 0 10px 0;
+        font-size:16px;
+      ">
+        🔬 11-Layer Backend Records
+      </h3>
+
+      ${
+        layers.length
+          ? layers.map(
+              layer => `
+                <div style="
+                  padding:12px;
+                  margin:7px 0;
+                  border:1px solid #e2e8f0;
+                  border-radius:9px;
+                  background:#f8fafc;
+                ">
+
+                  <strong>
+                    ${escapeHtml(
+                      layer?.layer ||
+                      "Layer"
+                    )}
+                  </strong>
+
+                  <span style="
+                    margin-left:10px;
+                    opacity:.7;
+                  ">
+                    ${escapeHtml(
+                      layer?.status ||
+                      "—"
+                    )}
+                  </span>
+
+                  ${
+                    layer?.score !==
+                      undefined
+                      ? `
+                        <span style="
+                          margin-left:10px;
+                        ">
+                          Score:
+                          ${escapeHtml(
+                            layer.score
+                          )}
+                        </span>
+                      `
+                      : ""
+                  }
+
+                </div>
+              `
+            ).join("")
+          : `
+            <div style="
+              padding:14px;
+              border-radius:9px;
+              background:#f8fafc;
+            ">
+              No dedicated layer records were returned
+              by the backend.
+            </div>
+          `
+      }
+
+    </div>
+
+    <div style="
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:20px;
+    ">
+
+      <button
+        id="showRawBtn"
+        type="button"
+      >
+        🧾 View Raw JSON
+      </button>
+
+      <button
+        id="exportResultBtn"
+        type="button"
+      >
+        📤 Export Run
+      </button>
+
+    </div>
+
+    <div
+      id="rawResultBox"
+      style="display:none;"
+    ></div>
+  `;
+
+  byId("showRawBtn")
+    ?.addEventListener(
+      "click",
+      () =>
+        showRawResult(
+          run?.raw ||
+          run
+        )
+    );
+
+  byId("exportResultBtn")
+    ?.addEventListener(
+      "click",
+      exportRun
+    );
+
+  panel.scrollIntoView({
+    behavior:
+      "smooth",
+    block:
+      "start"
+  });
+}
 
 /* ============================================================
    RESULT PANEL
@@ -814,7 +1863,9 @@ function ensureResultPanel() {
   let panel =
     byId("inpResultPanel");
 
-  if (panel) return panel;
+  if (panel) {
+    return panel;
+  }
 
   panel =
     document.createElement("section");
@@ -830,508 +1881,51 @@ function ensureResultPanel() {
     width:100%;
     box-sizing:border-box;
     margin:20px 0;
-    padding:22px;
+    padding:24px;
     background:#ffffff;
     border:1px solid #d9e2ec;
     border-radius:16px;
-    box-shadow:0 6px 20px rgba(15,23,42,0.08);
-    visibility:visible !important;
-    opacity:1 !important;
+    box-shadow:0 6px 20px rgba(15,23,42,.07);
   `;
 
   const main =
     document.querySelector("main");
 
-  if (main) {
-    const engine =
-      byId("engineControls");
+  const engine =
+    byId("engineControls");
 
-    if (engine) {
-      engine.insertAdjacentElement(
-        "afterend",
-        panel
-      );
-    } else {
-      main.appendChild(panel);
-    }
+  if (engine) {
+
+    engine.insertAdjacentElement(
+      "afterend",
+      panel
+    );
+
+  } else if (main) {
+
+    main.appendChild(
+      panel
+    );
+
   } else {
-    document.body.appendChild(panel);
+
+    document.body.appendChild(
+      panel
+    );
   }
 
   return panel;
 }
 
-
 /* ============================================================
-   RESULT RENDERING
+   LIST SECTIONS
    ============================================================ */
 
-function showResult(run) {
-
-  if (!run) return;
-
-  const panel =
-    ensureResultPanel();
-
-  const failureNodes =
-    Array.isArray(run.failure_nodes)
-      ? run.failure_nodes
-      : [];
-
-  const experiments =
-    Array.isArray(run.experiments)
-      ? run.experiments
-      : [];
-
-  const layers =
-    Array.isArray(run.layers)
-      ? run.layers
-      : [];
-
-  const restorationNodes =
-    Array.isArray(run.restoration_nodes)
-      ? run.restoration_nodes
-      : [];
-
-  const targets =
-    Array.isArray(run.targets)
-      ? run.targets
-      : [];
-
-  const pathways =
-    Array.isArray(run.pathways)
-      ? run.pathways
-      : [];
-
-  const translation =
-    run.translation || "GREY";
-
-  const priority =
-    run.overall_priority ??
-    run.priority ??
-    "—";
-
-  const uncertainty =
-    run.overall_uncertainty ??
-    run.uncertainty ??
-    "—";
-
-  const audit =
-    run.audit_sha256 ||
-    "Not available";
-
-
-  panel.innerHTML = `
-
-    <div style="
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-bottom:18px;
-    ">
-
-      <div>
-
-        <div style="
-          font-size:11px;
-          font-weight:700;
-          letter-spacing:1px;
-          text-transform:uppercase;
-          opacity:.65;
-          margin-bottom:5px;
-        ">
-          MOTHER INP 7.5.0
-        </div>
-
-        <h2 style="
-          margin:0;
-          font-size:22px;
-        ">
-          INP Run Results
-        </h2>
-
-      </div>
-
-      <div style="
-        padding:8px 13px;
-        border-radius:999px;
-        background:#eef6f0;
-        border:1px solid #cfe3d4;
-        font-weight:700;
-        font-size:13px;
-      ">
-        ${escapeHtml(run.status || "Completed")}
-      </div>
-
-    </div>
-
-
-    <div style="
-      display:grid;
-      grid-template-columns:
-        repeat(auto-fit,minmax(150px,1fr));
-      gap:12px;
-      margin-bottom:20px;
-    ">
-
-      ${resultCard(
-        "Disease",
-        run.disease ||
-        run.name ||
-        run.candidate_id ||
-        "—"
-      )}
-
-      ${resultCard(
-        "Run ID",
-        run.run_id || "—"
-      )}
-
-      ${resultCard(
-        "Priority",
-        String(priority)
-      )}
-
-      ${resultCard(
-        "Uncertainty",
-        String(uncertainty)
-      )}
-
-      ${resultCard(
-        "Translation",
-        translation
-      )}
-
-    </div>
-
-
-    ${renderArraySection(
-      "Failure Nodes",
-      failureNodes,
-      "⚠"
-    )}
-
-    ${renderArraySection(
-      "Restoration Nodes",
-      restorationNodes,
-      "↻"
-    )}
-
-    ${renderArraySection(
-      "Molecular Targets",
-      targets,
-      "🎯"
-    )}
-
-    ${renderArraySection(
-      "Pathways",
-      pathways,
-      "🧬"
-    )}
-
-
-    <div style="
-      border-top:1px solid #e2e8f0;
-      padding-top:18px;
-      margin-top:20px;
-    ">
-
-      <h3 style="
-        margin:0 0 10px 0;
-        font-size:16px;
-      ">
-        🔬 11-Layer Results
-      </h3>
-
-      ${
-        layers.length
-          ? layers.map(
-              layer => `
-                <div style="
-                  display:grid;
-                  grid-template-columns:
-                    60px 120px 90px minmax(0,1fr);
-                  gap:10px;
-                  align-items:center;
-                  padding:10px;
-                  margin:6px 0;
-                  border:1px solid #e2e8f0;
-                  border-radius:9px;
-                  background:#f8fafc;
-                  font-size:12px;
-                ">
-
-                  <strong>
-                    ${escapeHtml(
-                      layer.layer || "—"
-                    )}
-                  </strong>
-
-                  <span>
-                    ${escapeHtml(
-                      layer.status || "—"
-                    )}
-                  </span>
-
-                  <span>
-                    Score:
-                    ${
-                      layer.score === null ||
-                      layer.score === undefined
-                        ? "—"
-                        : escapeHtml(
-                            layer.score
-                          )
-                    }
-                  </span>
-
-                  <span style="
-                    min-width:0;
-                    word-break:break-word;
-                  ">
-                    ${
-                      Array.isArray(
-                        layer.failure_nodes
-                      ) &&
-                      layer.failure_nodes.length
-                        ? escapeHtml(
-                            layer.failure_nodes.join(
-                              ", "
-                            )
-                          )
-                        : escapeHtml(
-                            layer.notes || ""
-                          )
-                    }
-                  </span>
-
-                </div>
-              `
-            ).join("")
-          : `
-            <div style="
-              padding:12px;
-              border-radius:9px;
-              background:#f8fafc;
-              font-size:13px;
-            ">
-              No layer records returned by backend.
-            </div>
-          `
-      }
-
-    </div>
-
-
-    <div style="
-      border-top:1px solid #e2e8f0;
-      padding-top:18px;
-      margin-top:20px;
-    ">
-
-      <h3 style="
-        margin:0 0 10px 0;
-        font-size:16px;
-      ">
-        🧪 Experimental Priorities
-      </h3>
-
-      ${
-        experiments.length
-          ? experiments.map(
-              (experiment, index) => `
-                <div style="
-                  padding:13px;
-                  margin:8px 0;
-                  border:1px solid #e2e8f0;
-                  border-radius:10px;
-                  background:#ffffff;
-                ">
-
-                  <div style="
-                    font-weight:700;
-                    margin-bottom:5px;
-                  ">
-                    ${index + 1}.
-                    ${escapeHtml(
-                      experiment.layer ||
-                      "Layer"
-                    )}
-                    —
-                    ${escapeHtml(
-                      experiment.experiment_class ||
-                      "Experiment"
-                    )}
-                  </div>
-
-                  <div style="
-                    font-size:13px;
-                    line-height:1.5;
-                  ">
-                    ${escapeHtml(
-                      experiment.rationale || ""
-                    )}
-                  </div>
-
-                  ${
-                    Array.isArray(
-                      experiment.missing_evidence
-                    )
-                    ? `
-                      <div style="
-                        margin-top:7px;
-                        font-size:12px;
-                        opacity:.75;
-                      ">
-                        Missing evidence:
-                        ${escapeHtml(
-                          experiment.missing_evidence.join(
-                            "; "
-                          )
-                        )}
-                      </div>
-                    `
-                    : ""
-                  }
-
-                </div>
-              `
-            ).join("")
-          : `
-            <div style="
-              padding:12px;
-              border-radius:9px;
-              background:#f8fafc;
-              font-size:13px;
-            ">
-              No experiment recommendations returned.
-            </div>
-          `
-      }
-
-    </div>
-
-
-    <div style="
-      border-top:1px solid #e2e8f0;
-      padding-top:18px;
-      margin-top:20px;
-    ">
-
-      <h3 style="
-        margin:0 0 10px 0;
-        font-size:16px;
-      ">
-        🔐 Audit SHA-256
-      </h3>
-
-      <div style="
-        padding:12px;
-        border-radius:9px;
-        background:#f8fafc;
-        border:1px solid #e2e8f0;
-        font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-        font-size:11px;
-        word-break:break-all;
-      ">
-        ${escapeHtml(audit)}
-      </div>
-
-    </div>
-
-
-    <div style="
-      margin-top:20px;
-      padding:14px;
-      border-radius:10px;
-      background:#f8fafc;
-      border:1px solid #e2e8f0;
-      font-size:12px;
-      line-height:1.6;
-    ">
-
-      <strong>Scientific Governance</strong>
-
-      <br>
-
-      E0 = Evidence absent ·
-      E1 = Computational ·
-      E2 = Curated/database ·
-      E3 = Experimental ·
-      E4 = Clinical/human
-
-      <br><br>
-
-      This output is a computational/evidence-governance
-      record for research prioritization. It does not
-      constitute experimental validation or clinical proof.
-
-    </div>
-
-
-    <div style="
-      margin-top:18px;
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    ">
-
-      <button
-        id="resultExportBtn"
-        type="button"
-        style="
-          width:auto;
-          padding:10px 16px;
-          border-radius:9px;
-          cursor:pointer;
-          font-weight:700;
-        "
-      >
-        📤 Save / Export This Run
-      </button>
-
-      <button
-        id="resultRawBtn"
-        type="button"
-        style="
-          width:auto;
-          padding:10px 16px;
-          border-radius:9px;
-          cursor:pointer;
-        "
-      >
-        🧾 View Raw JSON
-      </button>
-
-    </div>
-  `;
-
-
-  const exportButton =
-    byId("resultExportBtn");
-
-  if (exportButton) {
-    exportButton.onclick = exportRun;
-  }
-
-  const rawButton =
-    byId("resultRawBtn");
-
-  if (rawButton) {
-    rawButton.onclick = () =>
-      showRawResult(run);
-  }
-
-  panel.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
-}
-
-
-function renderArraySection(title, items, icon) {
+function renderListSection(
+  title,
+  items,
+  icon
+) {
 
   return `
     <div style="
@@ -1360,9 +1954,12 @@ function renderArraySection(title, items, icon) {
                   font-size:13px;
                 ">
                   ${escapeHtml(
-                    typeof item === "string"
+                    typeof item ===
+                      "string"
                       ? item
-                      : JSON.stringify(item)
+                      : JSON.stringify(
+                          item
+                        )
                   )}
                 </div>
               `
@@ -1375,7 +1972,7 @@ function renderArraySection(title, items, icon) {
               border:1px solid #e2e8f0;
               font-size:13px;
             ">
-              None returned.
+              None returned by backend.
             </div>
           `
       }
@@ -1384,27 +1981,23 @@ function renderArraySection(title, items, icon) {
   `;
 }
 
-
 /* ============================================================
    RAW JSON
    ============================================================ */
 
-function showRawResult(run) {
-
-  const existing =
-    byId("inpRawResult");
-
-  if (existing) {
-    existing.remove();
-  }
+function showRawResult(
+  data
+) {
 
   const box =
-    document.createElement("pre");
+    byId("rawResultBox");
 
-  box.id =
-    "inpRawResult";
+  if (!box) return;
 
-  box.style.cssText = `
+  box.style.display =
+    "block";
+
+  box.style.cssText += `
     margin-top:15px;
     padding:15px;
     background:#0f172a;
@@ -1418,135 +2011,167 @@ function showRawResult(run) {
 
   box.textContent =
     JSON.stringify(
-      run,
+      data,
       null,
       2
     );
-
-  const panel =
-    byId("inpResultPanel");
-
-  if (panel) {
-    panel.appendChild(box);
-  }
 }
-
 
 /* ============================================================
-   ENGINE / RESEARCH MODULES
+   ERROR PANEL
    ============================================================ */
 
-function openEngine(layer) {
+function showErrorPanel(
+  title,
+  message
+) {
 
-  const names = {
-    1: "Disease + Genomic Context",
-    2: "MCheM / Physicochemistry",
-    3: "Absorption / Exposure",
-    4: "Metabolism / ADME",
-    5: "Cellular Action",
-    6: "Target / Pathway",
-    7: "Tissue / Organ",
-    8: "Network Pharmacology",
-    9: "Time / Adaptation",
-    10: "Safety / Selectivity",
-    11: "TIME™ Translation"
-  };
+  const panel =
+    ensureResultPanel();
 
-  alert(
-    `INP Layer ${layer}\n\n` +
-    `${names[layer] || "INP Layer"}\n\n` +
-    `Current API:\n${API_BASE}`
-  );
+  panel.innerHTML = `
+
+    <div style="
+      padding:18px;
+      border-radius:12px;
+      border:1px solid #ead4d4;
+      background:#fff8f8;
+    ">
+
+      <h2 style="
+        margin:0 0 9px 0;
+        font-size:20px;
+      ">
+        ⚠ ${escapeHtml(title)}
+      </h2>
+
+      <p style="
+        margin:0;
+        line-height:1.6;
+      ">
+        ${escapeHtml(message)}
+      </p>
+
+    </div>
+  `;
 }
 
+/* ============================================================
+   RESEARCH MODULES
+   ============================================================ */
+
 function openEvidence() {
+
+  const run =
+    currentRun?.raw;
+
   alert(
-    "Evidence Ledger\n\n" +
-    "Evidence provenance and classification " +
-    "are returned by the MOTHER INP backend."
+    run
+      ? "Evidence Ledger\n\nOpen the INP result panel to inspect the evidence returned by the backend."
+      : "Evidence Ledger\n\nExecute an INP analysis first."
   );
 }
 
 function openUncertainty() {
+
   alert(
-    "Uncertainty Analysis\n\n" +
-    "Uncertainty is reported from the backend " +
-    "when available."
+    currentRun?.raw
+      ? "Uncertainty Analysis\n\nInspect the uncertainty fields in the INP result returned by the backend."
+      : "Uncertainty Analysis\n\nExecute an INP analysis first."
   );
 }
 
 function openExperiments() {
+
   alert(
-    "Experimental Prioritization\n\n" +
-    "MOTHER INP prioritizes experiments using " +
-    "missing or uncertain evidence returned by the engine."
+    currentRun?.raw
+      ? "Experimental Prioritization\n\nInspect experimental recommendations returned by the backend."
+      : "Experimental Prioritization\n\nExecute an INP analysis first."
   );
 }
 
 function openTIME() {
+
   alert(
-    `TIME™ Translation\n\n` +
-    `Current translation: ${
-      currentRun.translation || "GREY"
-    }`
+    currentRun?.raw
+      ? `TIME™ Translation\n\nCurrent translation: ${
+          currentRun.translation ||
+          "GREY"
+        }`
+      : "TIME™ Translation\n\nExecute an INP analysis first."
   );
 }
-
 
 /* ============================================================
    IMPORT
    ============================================================ */
 
-function importRun(event) {
+function importRun(
+  event
+) {
 
   const file =
-    event.target.files?.[0];
+    event?.target?.files?.[0];
 
-  if (!file) return;
+  if (!file) {
+    return;
+  }
 
   const reader =
     new FileReader();
 
-  reader.onload = () => {
+  reader.onload =
+    () => {
 
-    try {
+      try {
 
-      const parsed =
-        JSON.parse(reader.result);
+        const parsed =
+          JSON.parse(
+            reader.result
+          );
 
-      const run =
-        parsed?.run ||
-        parsed;
+        const run =
+          parsed?.run ||
+          parsed;
 
-      currentRun =
-        run;
+        currentRun = {
+          ...currentRun,
+          ...(run || {}),
+          raw:
+            parsed
+        };
 
-      renderRun(
-        currentRun
-      );
+        renderRun(
+          currentRun
+        );
 
-      showResult(
-        currentRun
-      );
+        showResult(
+          currentRun
+        );
 
-      setStatus(
-        "Run imported",
-        true
-      );
+        setStatus(
+          "Run imported",
+          true
+        );
 
-    } catch (error) {
+      }
 
-      alert(
-        `Invalid INP JSON:\n\n${error.message}`
-      );
-    }
-  };
+      catch (error) {
 
-  reader.readAsText(file);
+        showErrorPanel(
+          "Invalid INP JSON",
+          error.message
+        );
+      }
+    };
 
-  event.target.value = "";
+  reader.readAsText(
+    file
+  );
+
+  event.target.value =
+    "";
 }
-
 
 /* ============================================================
    EXPORT
@@ -1556,7 +2181,10 @@ function exportRun() {
 
   if (
     !currentRun ||
-    !currentRun.run_id
+    !(
+      currentRun.run_id ||
+      currentRun.raw
+    )
   ) {
 
     alert(
@@ -1566,48 +2194,65 @@ function exportRun() {
     return;
   }
 
+  const data =
+    currentRun.raw ||
+    currentRun;
+
   const blob =
     new Blob(
       [
         JSON.stringify(
-          currentRun,
+          data,
           null,
           2
         )
       ],
       {
-        type:"application/json"
+        type:
+          "application/json"
       }
     );
 
   const url =
-    URL.createObjectURL(blob);
+    URL.createObjectURL(
+      blob
+    );
 
-  const a =
-    document.createElement("a");
+  const anchor =
+    document.createElement(
+      "a"
+    );
 
-  a.href =
+  anchor.href =
     url;
 
-  a.download =
-    `${currentRun.run_id}.json`;
+  anchor.download =
+    `${
+      currentRun.run_id ||
+      "MOTHER-INP-7.5-run"
+    }.json`;
 
-  document.body.appendChild(a);
+  document.body.appendChild(
+    anchor
+  );
 
-  a.click();
+  anchor.click();
 
-  a.remove();
+  anchor.remove();
 
   setTimeout(
-    () => URL.revokeObjectURL(url),
+    () =>
+      URL.revokeObjectURL(
+        url
+      ),
     1000
   );
 }
 
-
 /* ============================================================
    GLOBAL FUNCTIONS
-   Required by existing index.html inline onclick handlers.
+   ------------------------------------------------------------
+   Required because index.html uses inline onclick handlers.
    ============================================================ */
 
 window.openEngine =
@@ -1637,6 +2282,8 @@ window.exportRun =
 window.executeFunctionalTest =
   executeFunctionalTest;
 
+window.checkBackend =
+  checkBackend;
 
 /* ============================================================
    INITIALIZATION
@@ -1657,19 +2304,18 @@ document.addEventListener(
     );
 
     /*
-       Test the backend automatically so the
-       status indicator immediately reflects
-       whether the deployed API is reachable.
+       Do not block the interface if the backend is sleeping.
+       Render the UI first, then test connectivity.
     */
 
     await checkBackend();
-
   }
 );
 '''
 
-path = Path("/mnt/data/app.js")
-path.write_text(code, encoding="utf-8")
+path = Path("/mnt/data/MOTHER_INP_7.5_app.js")
+path.write_text(app_js, encoding="utf-8")
 
-print(f"Created {path}")
-print(f"Lines: {len(code.splitlines())}")
+print(f"Created: {path}")
+print(f"Lines: {len(app_js.splitlines())}")
+print(f"Bytes: {path.stat().st_size}")
