@@ -1345,6 +1345,146 @@ function exportRun() {
 
 function addEngineControls() {
 
+  /* ---------------------------------------------------------
+     If the controls already exist, only connect the buttons.
+     --------------------------------------------------------- */
+
+  let section =
+    document.getElementById("engineControls");
+
+  /* ---------------------------------------------------------
+     CREATE THE ENGINE PANEL
+     --------------------------------------------------------- */
+
+  if (!section) {
+
+    section =
+      document.createElement("section");
+
+    section.id =
+      "engineControls";
+
+    section.className =
+      "panel";
+
+    section.innerHTML = `
+
+      <h2>
+        ⚙️ Live INP 7.5 Engine
+      </h2>
+
+      <p>
+        Connected to the real MOTHER INP 7.5 backend.
+      </p>
+
+      <div style="
+        display:grid;
+        gap:10px;
+        max-width:700px;
+      ">
+
+        <label>
+          Candidate ID
+
+          <input
+            id="candidateInput"
+            value="C001"
+            style="
+              width:100%;
+              padding:10px;
+              box-sizing:border-box;
+            "
+          >
+        </label>
+
+        <label>
+          Candidate name
+
+          <input
+            id="candidateNameInput"
+            value="MOTHER INP 7.5 Functional Test"
+            style="
+              width:100%;
+              padding:10px;
+              box-sizing:border-box;
+            "
+          >
+        </label>
+
+        <label>
+          Backend API URL
+
+          <input
+            id="apiInput"
+            value="${escapeHtml(API_BASE)}"
+            style="
+              width:100%;
+              padding:10px;
+              box-sizing:border-box;
+            "
+          >
+        </label>
+
+        <div style="
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
+        ">
+
+          <button
+            id="connectBtn"
+            type="button"
+          >
+            🔌 Test Backend
+          </button>
+
+          <button
+            id="executeBtn"
+            type="button"
+            class="primary"
+          >
+            ▶ Execute Functional Run
+          </button>
+
+        </div>
+
+      </div>
+    `;
+
+    const main =
+      document.querySelector("main");
+
+    if (main) {
+
+      const hero =
+        main.querySelector(".hero");
+
+      if (hero && hero.nextSibling) {
+
+        main.insertBefore(
+          section,
+          hero.nextSibling
+        );
+
+      } else {
+
+        main.insertBefore(
+          section,
+          main.firstChild
+        );
+      }
+
+    } else {
+
+      document.body.appendChild(section);
+    }
+  }
+
+
+  /* ---------------------------------------------------------
+     FIND CONTROLS
+     --------------------------------------------------------- */
+
   const connectButton =
     document.getElementById("connectBtn");
 
@@ -1361,122 +1501,122 @@ function addEngineControls() {
     document.getElementById("apiInput");
 
 
-  /* ---------------------------------------------
-     EXISTING HTML CONTROLS
-     --------------------------------------------- */
+  /* ---------------------------------------------------------
+     INITIAL VALUES
+     --------------------------------------------------------- */
 
   if (apiInput) {
     apiInput.value = API_BASE;
   }
 
-  if (candidateInput) {
-    currentRun.candidate_id =
-      candidateInput.value.trim() || "C001";
-  }
 
-  if (candidateNameInput) {
-    currentRun.name =
-      candidateNameInput.value.trim() ||
-      "MOTHER INP 7.5 Functional Test";
-  }
-
-
-  /* ---------------------------------------------
+  /* ---------------------------------------------------------
      TEST BACKEND
-     --------------------------------------------- */
+     --------------------------------------------------------- */
 
   if (connectButton) {
 
-    connectButton.onclick = async function () {
+    connectButton.onclick =
+      async function () {
 
-      const value =
-        apiInput
-          ? apiInput.value.trim().replace(/\/$/, "")
-          : DEFAULT_API;
+        const value =
+          apiInput
+            ? apiInput.value
+                .trim()
+                .replace(/\/$/, "")
+            : DEFAULT_API;
 
-      if (!value) {
-        setStatus(
-          "Backend URL is empty.",
-          false
+        if (!value) {
+
+          setStatus(
+            "Backend URL is empty.",
+            false
+          );
+
+          return;
+        }
+
+        API_BASE = value;
+
+        localStorage.setItem(
+          "inp_api_base",
+          value
         );
-        return;
-      }
 
-      API_BASE = value;
+        window.INP_API_BASE =
+          value;
 
-      localStorage.setItem(
-        "inp_api_base",
-        value
-      );
+        connectButton.disabled = true;
 
-      window.INP_API_BASE = value;
+        connectButton.textContent =
+          "⏳ Testing…";
 
-      connectButton.disabled = true;
-      connectButton.textContent =
-        "⏳ Testing…";
+        try {
 
-      try {
+          const data =
+            await checkBackend();
 
-        const data =
-          await checkBackend();
+          if (data) {
 
-        if (data) {
+            alert(
+              `Connected successfully!\n\n` +
+              `Service: ${
+                data.service || "MOTHER INP 7.5"
+              }\n` +
+              `Engine: ${
+                data.engine || "inp7_5"
+              }`
+            );
+          }
 
-          alert(
-            `Connected successfully!\n\n` +
-            `Service: ${data.service || "MOTHER INP"}\n` +
-            `Engine: ${data.engine || "inp7_5"}`
+        }
+
+        catch (error) {
+
+          console.error(
+            "Backend test error:",
+            error
           );
 
         }
 
-      }
+        finally {
 
-      finally {
+          connectButton.disabled = false;
 
-        connectButton.disabled = false;
-
-        connectButton.textContent =
-          "🔌 Test Backend";
-      }
-    };
+          connectButton.textContent =
+            "🔌 Test Backend";
+        }
+      };
   }
 
 
-  /* ---------------------------------------------
+  /* ---------------------------------------------------------
      EXECUTE FUNCTIONAL RUN
-     --------------------------------------------- */
+     --------------------------------------------------------- */
 
   if (executeButton) {
 
-    executeButton.onclick = async function () {
+    executeButton.onclick =
+      async function () {
 
-      currentRun.candidate_id =
-        candidateInput?.value.trim() ||
-        "C001";
+        currentRun.candidate_id =
+          candidateInput?.value.trim() ||
+          "C001";
 
-      currentRun.name =
-        candidateNameInput?.value.trim() ||
-        "MOTHER INP 7.5 Functional Test";
+        currentRun.name =
+          candidateNameInput?.value.trim() ||
+          "MOTHER INP 7.5 Functional Test";
 
-
-      await executeFunctionalTest();
-    };
+        await executeFunctionalTest();
+      };
   }
 
 
   console.log(
-    "MOTHER INP 7.5 controls connected:",
-    {
-      connectButton: !!connectButton,
-      executeButton: !!executeButton,
-      candidateInput: !!candidateInput,
-      candidateNameInput: !!candidateNameInput,
-      apiInput: !!apiInput
-    }
+    "MOTHER INP 7.5 engine controls initialized."
   );
 }
-
 
 /* ============================================================
    INITIALIZATION
